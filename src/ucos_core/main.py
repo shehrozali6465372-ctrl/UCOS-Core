@@ -13,7 +13,10 @@ async def lifespan(_: FastAPI):
         ready, components = required_dependencies_ready()
         if not ready:
             unavailable = ", ".join(name for name, ok in components.items() if not ok)
-            raise RuntimeError(f"production startup blocked: required dependency unavailable: {unavailable}")
+            raise RuntimeError(
+                "production startup blocked: required dependency unavailable: "
+                f"{unavailable}"
+            )
     yield
 
 
@@ -29,5 +32,8 @@ def liveness() -> dict[str, str]:
 def readiness() -> dict[str, object]:
     ready, components = required_dependencies_ready()
     if not ready:
-        raise HTTPException(status_code=503, detail={"status": "not_ready", "dependencies": components})
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "not_ready", "dependencies": components},
+        )
     return {"status": "ready", "dependencies": components}

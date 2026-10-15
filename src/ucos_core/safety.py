@@ -41,7 +41,9 @@ def authorize_publication(context: PublicationContext) -> None:
         and context.requested_mode is ExecutionMode.STAGING
         and context.account_mode is ExecutionMode.PRODUCTION
     ):
-        raise SafetyViolation("staging request is not allowed for a production account in production")
+        raise SafetyViolation(
+            "staging request is not allowed for a production account in production"
+        )
 
     if (
         context.environment is ExecutionMode.PRODUCTION
@@ -52,7 +54,11 @@ def authorize_publication(context: PublicationContext) -> None:
         raise SafetyViolation("TikTok production publication requires explicitly public visibility")
 
 
-def classify_provider_outcome(*, accepted: bool | None, transport_timed_out: bool) -> ProviderOutcome:
+def classify_provider_outcome(
+    *,
+    accepted: bool | None,
+    transport_timed_out: bool,
+) -> ProviderOutcome:
     """Preserve ambiguous provider outcomes rather than converting them to failure."""
     if transport_timed_out or accepted is None:
         return ProviderOutcome.OUTCOME_UNKNOWN

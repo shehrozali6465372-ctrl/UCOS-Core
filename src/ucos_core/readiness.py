@@ -13,7 +13,11 @@ class DependencyStatus:
         return self.configured and self.available
 
 
-def evaluate_readiness(*, postgres: DependencyStatus, redis: DependencyStatus) -> tuple[bool, dict[str, bool]]:
+def evaluate_readiness(
+    *,
+    postgres: DependencyStatus,
+    redis: DependencyStatus,
+) -> tuple[bool, dict[str, bool]]:
     """Production readiness requires both PostgreSQL and Redis to be configured and reachable."""
     components = {"postgres": postgres.ready, "redis": redis.ready}
     return all(components.values()), components

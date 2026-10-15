@@ -23,7 +23,11 @@ def test_unconfigured_dependencies_are_not_ready():
 
 
 def test_liveness_does_not_depend_on_databases(monkeypatch):
-    monkeypatch.setattr(main, "required_dependencies_ready", lambda: (False, {"postgres": False, "redis": False}))
+    monkeypatch.setattr(
+        main,
+        "required_dependencies_ready",
+        lambda: (False, {"postgres": False, "redis": False}),
+    )
     with TestClient(main.app) as client:
         assert client.get("/health/live").status_code == 200
         assert client.get("/health/ready").status_code == 503

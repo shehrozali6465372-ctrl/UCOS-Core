@@ -1,10 +1,30 @@
-"""UCOS Stage 0 service: startup guard plus liveness/readiness endpoints."""
+"""UCOS service entry point with Stage 0 health and fail-closed L02 route."""
 
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
 from ucos_core.dependencies import production_environment, required_dependencies_ready
+from ucos_core.layers.l02_research.api import build_research_router
+from ucos_core.layers.l02_research.contracts import ResearchRequest
+from ucos_core.layers.l02_research.ports import DependencyUnavailable
+from ucos_core.layers.l02_research.service import ResearchService
+from ucos_core.layers.l11_integrations.tavily import TavilyResearchAdapter
+
+
+class _UnconfiguredResearchAuthorizer:
+    async def authorize(self, authorization: str | None, context: ResearchRequest) -> None:
+        del authorization, context
+        raise DependencyUnavailable("L17 authorization adapter is not configured")
+
+
+class _UnconfiguredResearchRepository:
+    async def ensure_ready(self) -> None:
+        raise DependencyUnavailable("L13 PostgreSQL repository adapter is not configured")
+
+    async def save(self, result) -> None:
+        del result
+        raise DependencyUnavailable("L13 PostgreSQL repository adapter is not configured")
 
 
 @asynccontextmanager
@@ -21,6 +41,16 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="UCOS Core", version="0.1.0", lifespan=lifespan)
+_research_service = ResearchService(
+    source=TavilyResearchAdapter(),
+    repository=_UnconfiguredResearchRepository(),
+)
+app.include_router(
+    build_research_router(
+        service=_research_service,
+        authorizer=_UnconfiguredResearchAuthorizer(),
+    )
+)
 
 
 @app.get("/health/live", tags=["health"])

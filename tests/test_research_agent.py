@@ -10,6 +10,7 @@ from ucos_core.agents.research.service import (
     ResearchUnavailable,
 )
 from ucos_core.main import app
+from ucos_core.agents.research import api as research_api
 
 
 def request() -> ResearchRequest:
@@ -82,3 +83,61 @@ def test_api_rejects_invalid_bearer_token(monkeypatch: pytest.MonkeyPatch) -> No
         headers={"Authorization": "Bearer incorrect-secret"},
     )
     assert response.status_code == 401
+
+
+def test_api_fails_closed_when_token_scope_is_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.delenv("UCOS_RESEARCH_SCOPE_TENANT_ID", raising=False)
+    monkeypatch.delenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", raising=False)
+    monkeypatch.delenv("UCOS_RESEARCH_SCOPE_BRAND_ID", raising=False)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "research token scope is not configured"
+
+
+def test_api_rejects_scope_mismatch_before_research(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-allowed")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 403
+    service.execute.assert_not_awaited()
+
+
+def test_api_accepts_only_configured_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    from ucos_core.agents.research.contracts import ResearchResponse
+
+    service = AsyncMock()
+    service.execute.return_value = ResearchResponse(
+        request_id="req-1", correlation_id="corr-1", status="NO_RESULTS",
+        analysis="", evidence=[], persisted=True,
+    )
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 200
+    service.execute.assert_awaited_once()

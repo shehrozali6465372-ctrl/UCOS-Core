@@ -44,7 +44,11 @@ def _authorize_configured_scope(request: ResearchRequest) -> None:
             detail="research token scope is not configured",
         )
     requested = (request.tenant_id, request.workspace_id, request.brand_id)
-    if not all(hmac.compare_digest(actual, expected) for actual, expected in zip(requested, configured)):
+    matches = (
+        hmac.compare_digest(actual, expected)
+        for actual, expected in zip(requested, configured, strict=True)
+    )
+    if not all(matches):
         raise HTTPException(status_code=403, detail="request is outside configured token scope")
 
 

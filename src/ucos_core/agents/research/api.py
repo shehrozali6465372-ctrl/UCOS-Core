@@ -30,12 +30,31 @@ def _authenticate(authorization: str | None) -> None:
         raise HTTPException(status_code=401, detail="invalid bearer token")
 
 
+def _authorize_configured_scope(request: ResearchRequest) -> None:
+    """Bind this service token to one explicitly configured tenant/workspace/brand scope."""
+    names = (
+        "UCOS_RESEARCH_SCOPE_TENANT_ID",
+        "UCOS_RESEARCH_SCOPE_WORKSPACE_ID",
+        "UCOS_RESEARCH_SCOPE_BRAND_ID",
+    )
+    configured = tuple(os.getenv(name, "").strip() for name in names)
+    if not all(configured):
+        raise HTTPException(
+            status_code=503,
+            detail="research token scope is not configured",
+        )
+    requested = (request.tenant_id, request.workspace_id, request.brand_id)
+    if not all(hmac.compare_digest(actual, expected) for actual, expected in zip(requested, configured)):
+        raise HTTPException(status_code=403, detail="request is outside configured token scope")
+
+
 @router.post("", response_model=ResearchResponse)
 async def research(
     request: ResearchRequest,
     authorization: str | None = Header(default=None),
 ) -> ResearchResponse:
     _authenticate(authorization)
+    _authorize_configured_scope(request)
     if _service is None:
         raise HTTPException(status_code=503, detail="research service not configured")
     try:

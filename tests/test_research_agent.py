@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from ucos_core.agents.research.api import configure_research_service
 from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest
 from ucos_core.agents.research.service import (
     ResearchForbidden,

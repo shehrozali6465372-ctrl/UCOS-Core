@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:
         # Avoid printing exception details that may contain connection data.
         print(
-            "Provisioning operation failed. Check migrations, database permissions, and the scope IDs.",
+            "Provisioning failed. Check migrations, database permissions, and scope IDs.",
             file=sys.stderr,
         )
         return 1

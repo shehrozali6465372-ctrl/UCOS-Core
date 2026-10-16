@@ -67,3 +67,62 @@ def test_provision_scope_uses_parameterized_sql_and_transaction() -> None:
     assert len(fake.statements) == 2
     assert fake.statements[0][1] == ids
     assert fake.statements[1][1] == ("operator-test", *ids)
+
+
+def test_disable_scope_updates_grant_and_audits_atomically() -> None:
+    class FakeCursor:
+        def fetchone(self):
+            return ("tenant",)
+
+    class FakeConnection:
+        def __init__(self):
+            self.statements = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def transaction(self):
+            return self
+
+        def execute(self, query, params):
+            self.statements.append((query, params))
+            return FakeCursor()
+
+    fake = FakeConnection()
+    with patch.object(provisioning.psycopg, "connect", return_value=fake):
+        provisioning.disable_scope("postgresql://unused", "operator-test", "tenant", "workspace", "brand")
+    assert len(fake.statements) == 2
+    assert fake.statements[0][1] == ("tenant", "workspace", "brand")
+    assert fake.statements[1][1] == ("operator-test", "tenant", "workspace", "brand")
+
+
+def test_disable_scope_refuses_missing_or_already_disabled_grant() -> None:
+    class FakeCursor:
+        def fetchone(self):
+            return None
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def transaction(self):
+            return self
+
+        def execute(self, _query, _params):
+            return FakeCursor()
+
+    with patch.object(provisioning.psycopg, "connect", return_value=FakeConnection()):
+        try:
+            provisioning.disable_scope(
+                "postgresql://unused", "operator-test", "tenant", "workspace", "brand"
+            )
+        except ValueError as exc:
+            assert "does not exist or is already disabled" in str(exc)
+        else:
+            raise AssertionError("missing grant must not be reported as disabled")

@@ -1,10 +1,14 @@
-"""Explicit operator-run provisioning for a single Agent 01 scope.
+"""Explicit operator-run provisioning and revocation for Agent 01 scopes.
 
-Run with: UCOS_PROVISIONING_DATABASE_URL=... UCOS_PROVISIONING_ACTOR=... \
-python -m ucos_core.provisioning --confirm
+Create a scope:
+  UCOS_PROVISIONING_DATABASE_URL=... UCOS_PROVISIONING_ACTOR=... \
+  python -m ucos_core.provisioning --confirm
 
-This command creates identifiers and an enabled grant only when --confirm is supplied.
-It never prints database URLs or credentials.
+Disable a scope:
+  UCOS_PROVISIONING_DATABASE_URL=... UCOS_PROVISIONING_ACTOR=... \
+  python -m ucos_core.provisioning --disable TENANT_ID WORKSPACE_ID BRAND_ID --confirm
+
+This is a controlled operator command, not a public admin API.
 """
 from __future__ import annotations
 
@@ -18,12 +22,18 @@ import psycopg
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Create one owner-controlled Agent 01 scope and its grant."
+        description="Create or disable an Agent 01 scope grant as an operator."
     )
     parser.add_argument(
         "--confirm",
         action="store_true",
-        help="required to write the scope grant and audit record to PostgreSQL",
+        help="required to write the grant and audit record to PostgreSQL",
+    )
+    parser.add_argument(
+        "--disable",
+        nargs=3,
+        metavar=("TENANT_ID", "WORKSPACE_ID", "BRAND_ID"),
+        help="disable an existing grant instead of creating a new UUID scope",
     )
     return parser
 
@@ -52,6 +62,38 @@ def provision_scope(database_url: str, actor: str) -> tuple[str, str, str]:
     return tenant_id, workspace_id, brand_id
 
 
+def disable_scope(
+    database_url: str,
+    actor: str,
+    tenant_id: str,
+    workspace_id: str,
+    brand_id: str,
+) -> None:
+    """Disable an existing grant and write its audit event atomically."""
+    with psycopg.connect(database_url, connect_timeout=5) as conn:
+        with conn.transaction():
+            cursor = conn.execute(
+                """
+                UPDATE ucos_research_scope_grants
+                SET enabled = FALSE
+                WHERE tenant_id = %s AND workspace_id = %s AND brand_id = %s
+                  AND enabled = TRUE
+                RETURNING tenant_id
+                """,
+                (tenant_id, workspace_id, brand_id),
+            )
+            if cursor.fetchone() is None:
+                raise ValueError("scope grant does not exist or is already disabled")
+            conn.execute(
+                """
+                INSERT INTO ucos_scope_provisioning_audit
+                    (actor, action, tenant_id, workspace_id, brand_id)
+                VALUES (%s, 'GRANT_DISABLED', %s, %s, %s)
+                """,
+                (actor, tenant_id, workspace_id, brand_id),
+            )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if not args.confirm:
@@ -71,11 +113,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
+        if args.disable:
+            disable_scope(database_url, actor, *args.disable)
+            print("Scope grant disabled and audit event recorded.")
+            return 0
         tenant_id, workspace_id, brand_id = provision_scope(database_url, actor)
     except Exception:
-        # Deliberately avoid printing exception details that may contain connection data.
+        # Avoid printing exception details that may contain connection data.
         print(
-            "Provisioning failed; no scope was reported as created. Check migration and database permissions.",
+            "Provisioning operation failed. Check migrations, database permissions, and the scope IDs.",
             file=sys.stderr,
         )
         return 1

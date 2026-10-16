@@ -93,7 +93,13 @@ def test_disable_scope_updates_grant_and_audits_atomically() -> None:
 
     fake = FakeConnection()
     with patch.object(provisioning.psycopg, "connect", return_value=fake):
-        provisioning.disable_scope(\n            "postgresql://unused", "operator-test", "tenant", "workspace", "brand"\n        )
+        provisioning.disable_scope(
+            "postgresql://unused",
+            "operator-test",
+            "tenant",
+            "workspace",
+            "brand",
+        )
     assert len(fake.statements) == 2
     assert fake.statements[0][1] == ("tenant", "workspace", "brand")
     assert fake.statements[1][1] == ("operator-test", "tenant", "workspace", "brand")

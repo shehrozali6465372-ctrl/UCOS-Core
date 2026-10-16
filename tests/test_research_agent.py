@@ -9,8 +9,8 @@ from ucos_core.agents.research.service import (
     ResearchService,
     ResearchUnavailable,
 )
-from ucos_core.main import app
 from ucos_core.agents.research import api as research_api
+from ucos_core.main import app
 
 
 def request() -> ResearchRequest:

@@ -10,6 +10,7 @@ from ucos_core.agents.research.service import (
     ResearchUnavailable,
 )
 from ucos_core.main import app
+from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict
 
 
 def request() -> ResearchRequest:
@@ -66,6 +67,17 @@ async def test_provider_failure_fails_closed() -> None:
     with pytest.raises(ResearchUnavailable):
         await ResearchService(source, analyzer, auth, repo).execute(request())
     repo.save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_idempotency_conflict_is_not_success() -> None:
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = True
+    source.search.return_value = []
+    repo.save.side_effect = ResearchIdempotencyConflict("request_id reused")
+    with pytest.raises(ResearchUnavailable, match="durable persistence failed"):
+        await ResearchService(source, analyzer, auth, repo).execute(request())
+    repo.save.assert_awaited_once()
 
 
 def test_api_rejects_missing_token_configuration(monkeypatch: pytest.MonkeyPatch) -> None:

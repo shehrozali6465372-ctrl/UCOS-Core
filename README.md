@@ -37,7 +37,8 @@ For a single-owner initial deployment with no existing identity/admin system, an
 3. Set `UCOS_PROVISIONING_ACTOR` to an operator identity suitable for the audit record (do not put a password or token there).
 4. Run `python -m ucos_core.provisioning --confirm` in a controlled operator environment. Without `--confirm`, the command makes no changes. It prints the three generated IDs only after the database transaction succeeds.
 5. Store the returned IDs in the approved deployment record and configure the matching `UCOS_RESEARCH_SCOPE_TENANT_ID`, `UCOS_RESEARCH_SCOPE_WORKSPACE_ID`, and `UCOS_RESEARCH_SCOPE_BRAND_ID` values in Render. Never paste secrets into source control or chat.
-6. To revoke a scope, run `python -m ucos_core.provisioning --disable TENANT_ID WORKSPACE_ID BRAND_ID --confirm` with the same operator environment. This disables the grant and records an audit event in one transaction; it does not delete research history. Remove or rotate the matching Render scope configuration as part of the operator's revocation procedure.\n7. Verify the grant with a read-only query before enabling traffic:
+6. To revoke a scope, run `python -m ucos_core.provisioning --disable TENANT_ID WORKSPACE_ID BRAND_ID --confirm` with the same operator environment. This disables the grant and records an audit event in one transaction; it does not delete research history. Remove or rotate the matching Render scope configuration as part of the operator's revocation procedure.
+7. Verify the grant with a read-only query before enabling traffic:
 
 ```sql
 SELECT tenant_id, workspace_id, brand_id, enabled

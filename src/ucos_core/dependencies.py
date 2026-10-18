@@ -47,7 +47,6 @@ def probe_redis() -> ProbeResult:
         return ProbeResult(configured=True, available=False)
 
 
-
 def probe_research_scope() -> ProbeResult:
     """Verify the configured single scope has an enabled database authorization grant."""
     names = (

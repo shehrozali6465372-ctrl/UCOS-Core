@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """PostgreSQL integration tests for durable Agent 01 idempotency.
 
 CI supplies TEST_DATABASE_URL pointing at an ephemeral PostgreSQL service.

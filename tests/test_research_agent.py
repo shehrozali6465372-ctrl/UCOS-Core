@@ -47,6 +47,7 @@ async def test_research_denies_unauthorized_scope_before_search() -> None:
     with pytest.raises(ResearchForbidden):
         await ResearchService(source, analyzer, auth, repo).execute(request())
     source.search.assert_not_awaited()
+    repo.claim.assert_not_awaited()
     repo.save.assert_not_awaited()
 
 

@@ -6,6 +6,7 @@ import pytest
 
 from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
 from ucos_core.agents.research.service import ResearchConflict, ResearchService
+from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict
 
 
 def make_request() -> ResearchRequest:
@@ -50,7 +51,6 @@ async def test_request_id_reuse_with_different_inputs_conflicts_before_provider_
     request = make_request()
     source, analyzer, authorizer, repository = (AsyncMock() for _ in range(4))
     authorizer.authorize.return_value = True
-    from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict
     repository.get_existing.side_effect = ResearchIdempotencyConflict("input mismatch")
 
     with pytest.raises(ResearchConflict):

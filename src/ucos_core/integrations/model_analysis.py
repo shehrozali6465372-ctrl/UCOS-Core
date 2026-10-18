@@ -14,7 +14,9 @@ class OpenAICompatibleAnalyzer:
             "ANALYSIS_BASE_URL", "https://api.openai.com/v1"
         ).strip().rstrip("/")
         parsed = urlsplit(self._base_url)
-        local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        local_http = parsed.scheme == "http" and parsed.hostname in {
+            "localhost", "127.0.0.1", "::1"
+        }
         if (
             (parsed.scheme != "https" and not local_http)
             or not parsed.hostname

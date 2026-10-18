@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ucos_core.agents.research import api as research_api
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest
+from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
 from ucos_core.agents.research.service import (
     ResearchBusy,
     ResearchConflict,
@@ -150,8 +150,6 @@ def test_api_accepts_only_configured_scope(
 def test_api_returns_conflict_when_request_is_already_in_progress(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from ucos_core.agents.research.contracts import ResearchResponse
-
     monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")

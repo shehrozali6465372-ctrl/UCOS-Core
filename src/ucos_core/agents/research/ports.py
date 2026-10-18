@@ -18,7 +18,13 @@ class ResearchAuthorizer(Protocol):
 
 
 class ResearchRepository(Protocol):
-    async def get_existing(self, request: ResearchRequest) -> ResearchResponse | None: ...
+    async def claim(self, request: ResearchRequest) -> int | ResearchResponse: ...
 
-    async def save(self, request: ResearchRequest, status: str, analysis: str,
-                   evidence: list[EvidenceItem]) -> None: ...
+    async def save(
+        self,
+        request: ResearchRequest,
+        generation: int,
+        status: str,
+        analysis: str,
+        evidence: list[EvidenceItem],
+    ) -> None: ...

@@ -91,11 +91,6 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     # Readiness is also a configuration safety gate: don't accept traffic when
     # authentication, the single authorized scope, or provider credentials are absent.
     token_configured = bool(os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip())
-    scope_names = (
-        "UCOS_RESEARCH_SCOPE_TENANT_ID",
-        "UCOS_RESEARCH_SCOPE_WORKSPACE_ID",
-        "UCOS_RESEARCH_SCOPE_BRAND_ID",
-    )
     components["research_auth"] = token_configured
     components["research_scope"] = scope_grant.ready
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())

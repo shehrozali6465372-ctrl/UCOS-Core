@@ -22,7 +22,7 @@ Agent 01 accepts a scoped research request, retrieves source evidence through Ta
 - `ANALYSIS_MODEL`: defaults to `gpt-4.1-mini`
 - `UCOS_ENV=production` for production startup checks
 
-Production startup and `/health/ready` now fail closed unless PostgreSQL and Redis are reachable, the bearer token and provider credentials are configured, the single scope is fully configured, and that exact scope has an enabled row in `ucos_research_scope_grants`. The scope probe is read-only; it never provisions or modifies grants.
+Production startup and `/health/ready` now fail closed unless PostgreSQL and Redis are reachable, the bearer token and provider credentials are configured, the single scope is fully configured, and that exact scope has an enabled row in `ucos_research_scope_grants`. The scope probe is read-only; it never provisions or modifies grants. Configure Render's health-check path as `/health/ready` after all required settings and the enabled scope grant exist; readiness intentionally returns HTTP 503 until every gate passes.
 
 The three `UCOS_RESEARCH_SCOPE_*` values must be sourced from the approved tenant/workspace/brand authority; do not invent them. The API fails closed with HTTP 503 if any are missing and returns HTTP 403 if a request asks for a different scope. This is a single configured scope per service token, not multi-tenant identity federation. Never commit secrets. See `.env.example` for variable names only.
 

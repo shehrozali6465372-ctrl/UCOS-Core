@@ -1,0 +1,49 @@
+"""Boundary tests for readiness gates and provider response validation."""
+from unittest.mock import patch
+
+import pytest
+
+from ucos_core.dependencies import ProbeResult, required_dependencies_ready
+from ucos_core.integrations.tavily_research import TavilyResearchSource
+
+
+def test_readiness_requires_provider_credentials_and_granted_scope(monkeypatch):
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-token")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand")
+    monkeypatch.setenv("TAVILY_API_KEY", "tavily-test")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "model-test")
+    monkeypatch.setenv("ANALYSIS_MODEL", "test-model")
+    with (
+        patch("ucos_core.dependencies.probe_postgres", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
+    ):
+        ready, components = required_dependencies_ready()
+    assert ready is True
+    assert all(components.values())
+
+
+def test_readiness_fails_when_scope_grant_is_missing(monkeypatch):
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-token")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand")
+    monkeypatch.setenv("TAVILY_API_KEY", "tavily-test")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "model-test")
+    with (
+        patch("ucos_core.dependencies.probe_postgres", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, False)),
+    ):
+        ready, components = required_dependencies_ready()
+    assert ready is False
+    assert components["research_scope"] is False
+
+
+@pytest.mark.asyncio
+async def test_tavily_adapter_fails_closed_without_credentials(monkeypatch):
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="TAVILY_API_KEY is not configured"):
+        await TavilyResearchSource().search("a research query", 3)

@@ -33,9 +33,11 @@ def test_liveness_does_not_depend_on_databases(monkeypatch):
         assert client.get("/health/ready").status_code == 503
 
 def test_readiness_fails_closed_without_auth_scope_or_provider_config(monkeypatch):
+    from ucos_core.dependencies import ProbeResult
+
     monkeypatch.setattr(
         "ucos_core.dependencies.probe_postgres",
-        lambda: __import__("ucos_core.dependencies", fromlist=["ProbeResult"]).ProbeResult(True, True),
+        lambda: ProbeResult(True, True),
     )
     monkeypatch.setattr(
         "ucos_core.dependencies.probe_redis",
@@ -81,6 +83,8 @@ def test_readiness_passes_configuration_gate_when_all_values_exist(monkeypatch):
         "UCOS_RESEARCH_SCOPE_BRAND_ID": "brand",
         "TAVILY_API_KEY": "test-tavily",
         "ANALYSIS_API_KEY": "test-analysis",
+        "ANALYSIS_MODEL": "test-model",
+        "ANALYSIS_BASE_URL": "https://example.invalid/v1",
     }
     for name, value in values.items():
         monkeypatch.setenv(name, value)

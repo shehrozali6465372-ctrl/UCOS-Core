@@ -76,12 +76,53 @@ def probe_research_scope() -> ProbeResult:
         return ProbeResult(configured=True, available=False)
 
 
+
+def probe_research_schema() -> ProbeResult:
+    """Verify the durable claim/replay schema is present before accepting traffic."""
+    database_url = _configured_url("DATABASE_URL")
+    if not database_url:
+        return ProbeResult(configured=False, available=False)
+    required_columns = {
+        "request_id", "correlation_id", "tenant_id", "workspace_id", "brand_id",
+        "workflow_id", "workflow_step_id", "query_text", "max_results", "status",
+        "analysis_text", "evidence_json", "claim_expires_at", "claim_generation",
+    }
+    try:
+        import psycopg
+
+        with psycopg.connect(database_url, connect_timeout=2) as connection:
+            cursor = connection.execute(
+                """SELECT column_name
+                   FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'ucos_research_runs'
+                     AND column_name = ANY(%s)""",
+                (list(required_columns),),
+            )
+            present_columns = {row[0] for row in cursor.fetchall()}
+            constraint = connection.execute(
+                """SELECT pg_get_constraintdef(oid)
+                   FROM pg_constraint
+                   WHERE conrelid = 'public.ucos_research_runs'::regclass
+                     AND conname = 'ucos_research_runs_status_check'
+                     AND contype = 'c'"""
+            ).fetchone()
+        status_constraint_ready = bool(
+            constraint
+            and all(status in constraint[0] for status in ("IN_PROGRESS", "SUCCEEDED", "NO_RESULTS"))
+        )
+        available = required_columns <= present_columns and status_constraint_ready
+        return ProbeResult(configured=True, available=available)
+    except Exception:
+        return ProbeResult(configured=True, available=False)
+
+
 def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     from ucos_core.readiness import DependencyStatus, evaluate_readiness
 
     postgres = probe_postgres()
     cache = probe_redis()
     scope_grant = probe_research_scope()
+    research_schema = probe_research_schema()
     ready, components = evaluate_readiness(
         postgres=DependencyStatus(postgres.configured, postgres.available),
         redis=DependencyStatus(cache.configured, cache.available),
@@ -92,6 +133,7 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     token_configured = bool(os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip())
     components["research_auth"] = token_configured
     components["research_scope"] = scope_grant.configured and scope_grant.available
+    components["research_schema"] = research_schema.configured and research_schema.available
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())
     components["analysis_model"] = bool(
         os.getenv("ANALYSIS_API_KEY", "").strip()

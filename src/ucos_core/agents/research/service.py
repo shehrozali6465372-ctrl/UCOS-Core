@@ -7,7 +7,10 @@ from ucos_core.agents.research.ports import (
     ResearchRepository,
     ResearchSource,
 )
-from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict, ResearchRequestInProgress
+from ucos_core.repositories.research_postgres import (
+    ResearchIdempotencyConflict,
+    ResearchRequestInProgress,
+)
 
 
 class ResearchUnavailable(RuntimeError):

@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest
+from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
 
 
 class ResearchSource(Protocol):
@@ -18,5 +18,13 @@ class ResearchAuthorizer(Protocol):
 
 
 class ResearchRepository(Protocol):
-    async def save(self, request: ResearchRequest, status: str, analysis: str,
-                   evidence: list[EvidenceItem]) -> None: ...
+    async def claim(self, request: ResearchRequest) -> int | ResearchResponse: ...
+
+    async def save(
+        self,
+        request: ResearchRequest,
+        generation: int,
+        status: str,
+        analysis: str,
+        evidence: list[EvidenceItem],
+    ) -> None: ...

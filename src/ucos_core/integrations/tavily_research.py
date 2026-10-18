@@ -2,6 +2,7 @@
 
 import os
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -28,7 +29,20 @@ class TavilyResearchSource:
         for item in payload.get("results", []):
             url = item.get("url")
             title = item.get("title")
-            if not isinstance(url, str) or not url.startswith(("https://", "http://")):
+            if not isinstance(url, str) or len(url) > 2048:
+                continue
+            try:
+                parsed_url = urlsplit(url)
+                safe_url = (
+                    parsed_url.scheme in {"https", "http"}
+                    and bool(parsed_url.hostname)
+                    and parsed_url.username is None
+                    and parsed_url.password is None
+                    and not any(ord(char) < 32 for char in url)
+                )
+            except ValueError:
+                safe_url = False
+            if not safe_url:
                 continue
             items.append(EvidenceItem(
                 source="tavily", title=str(title or url)[:500], url=url,

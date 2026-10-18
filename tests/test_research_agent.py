@@ -4,8 +4,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ucos_core.agents.research import api as research_api
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest
+from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
 from ucos_core.agents.research.service import (
+    ResearchBusy,
+    ResearchConflict,
     ResearchForbidden,
     ResearchService,
     ResearchUnavailable,
@@ -27,13 +29,15 @@ async def test_research_persists_provenance_before_success() -> None:
                        excerpt="Evidence", retrieved_at="2026-01-01T00:00:00+00:00")
     source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
     auth.authorize.return_value = True
+    repo.claim.return_value = 1
     source.search.return_value = [item]
     analyzer.analyze.return_value = "Finding [1]"
     result = await ResearchService(source, analyzer, auth, repo).execute(request())
     assert result.status == "SUCCEEDED"
     assert result.evidence == [item]
     assert result.persisted is True
-    repo.save.assert_awaited_once()
+    repo.claim.assert_awaited_once_with(request())
+    repo.save.assert_awaited_once_with(request(), 1, "SUCCEEDED", "Finding [1]", [item])
 
 
 @pytest.mark.asyncio
@@ -43,6 +47,7 @@ async def test_research_denies_unauthorized_scope_before_search() -> None:
     with pytest.raises(ResearchForbidden):
         await ResearchService(source, analyzer, auth, repo).execute(request())
     source.search.assert_not_awaited()
+    repo.claim.assert_not_awaited()
     repo.save.assert_not_awaited()
 
 
@@ -52,6 +57,7 @@ async def test_persistence_failure_never_returns_success() -> None:
                        excerpt="Evidence", retrieved_at="2026-01-01T00:00:00+00:00")
     source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
     auth.authorize.return_value = True
+    repo.claim.return_value = 1
     source.search.return_value = [item]
     analyzer.analyze.return_value = "Finding [1]"
     repo.save.side_effect = RuntimeError("db down")
@@ -63,6 +69,7 @@ async def test_persistence_failure_never_returns_success() -> None:
 async def test_provider_failure_fails_closed() -> None:
     source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
     auth.authorize.return_value = True
+    repo.claim.return_value = 1
     source.search.side_effect = RuntimeError("provider down")
     with pytest.raises(ResearchUnavailable):
         await ResearchService(source, analyzer, auth, repo).execute(request())
@@ -126,8 +133,6 @@ def test_api_accepts_only_configured_scope(
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
-    from ucos_core.agents.research.contracts import ResearchResponse
-
     service = AsyncMock()
     service.execute.return_value = ResearchResponse(
         request_id="req-1", correlation_id="corr-1", status="NO_RESULTS",
@@ -141,3 +146,40 @@ def test_api_accepts_only_configured_scope(
     )
     assert response.status_code == 200
     service.execute.assert_awaited_once()
+
+
+def test_api_returns_conflict_when_request_is_already_in_progress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.execute.side_effect = ResearchBusy("already processing")
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 409
+    assert response.headers["retry-after"] == "5"
+
+
+def test_api_returns_conflict_for_request_id_reuse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.execute.side_effect = ResearchConflict("request ID reused")
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 409

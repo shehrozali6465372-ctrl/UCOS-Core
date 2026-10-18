@@ -18,7 +18,7 @@ Agent 01 accepts a scoped research request, retrieves source evidence through Ta
 - `UCOS_RESEARCH_SCOPE_TENANT_ID`, `UCOS_RESEARCH_SCOPE_WORKSPACE_ID`, `UCOS_RESEARCH_SCOPE_BRAND_ID`: the one tenant/workspace/brand scope permitted for that token
 - `TAVILY_API_KEY`: Tavily search credential
 - `ANALYSIS_API_KEY`: key for the configured OpenAI-compatible model endpoint
-- `ANALYSIS_BASE_URL`: defaults to `https://api.openai.com/v1`
+- `ANALYSIS_BASE_URL`: defaults to `https://api.openai.com/v1`; production endpoints must use HTTPS and must not embed credentials, query strings, or fragments (HTTP is permitted only for loopback development endpoints)
 - `ANALYSIS_MODEL`: defaults to `gpt-4.1-mini`
 - `UCOS_ENV=production` for production startup checks
 

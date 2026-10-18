@@ -63,3 +63,34 @@ def test_model_adapter_rejects_endpoint_with_embedded_credentials(monkeypatch):
     monkeypatch.setenv("ANALYSIS_BASE_URL", "https://user:pass@example.com/v1")
     with pytest.raises(RuntimeError, match="must be HTTPS"):
         OpenAICompatibleAnalyzer()
+
+
+@pytest.mark.asyncio
+async def test_tavily_filters_malformed_and_credential_bearing_urls(monkeypatch):
+    import httpx
+    from unittest.mock import patch
+
+    from ucos_core.integrations.tavily_research import TavilyResearchSource
+
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+    async def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {"url": "javascript:alert(1)", "title": "bad", "content": "x"},
+                    {"url": "https://user:pass@example.com/path", "title": "bad", "content": "x"},
+                    {"url": "https://example.com/good", "title": "good", "content": "safe"},
+                ]
+            },
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        evidence = await TavilyResearchSource().search("query", 5)
+
+    assert len(evidence) == 1
+    assert evidence[0].url == "https://example.com/good"

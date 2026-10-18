@@ -92,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError("idempotent replay did not return the same stored response")
 
         with psycopg.connect(database_url, connect_timeout=5) as connection:
+            # Enforce read-only mode in the database session even if the supplied
+            # verification credential was accidentally granted write privileges.
+            connection.execute("SET TRANSACTION READ ONLY")
             row = connection.execute(
                 """SELECT correlation_id, tenant_id, workspace_id, brand_id,
                           workflow_id, workflow_step_id, query_text, max_results,

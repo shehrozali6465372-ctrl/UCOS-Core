@@ -132,8 +132,6 @@ def test_api_accepts_only_configured_scope(
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
-    from ucos_core.agents.research.contracts import ResearchResponse
-
     service = AsyncMock()
     service.execute.return_value = ResearchResponse(
         request_id="req-1", correlation_id="corr-1", status="NO_RESULTS",

@@ -1,4 +1,4 @@
-""""OpenAI-compatible model adapter for evidence-grounded analysis."""
+"""OpenAI-compatible model adapter for evidence-grounded analysis."""
 
 import os
 from urllib.parse import urlsplit

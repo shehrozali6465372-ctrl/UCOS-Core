@@ -164,6 +164,7 @@ def test_api_returns_conflict_when_request_is_already_in_progress(
         headers={"Authorization": "Bearer correct-secret"},
     )
     assert response.status_code == 409
+    assert response.headers["retry-after"] == "5"
 
 
 def test_api_returns_conflict_for_request_id_reuse(

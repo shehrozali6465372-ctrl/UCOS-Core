@@ -108,7 +108,10 @@ def probe_research_schema() -> ProbeResult:
             ).fetchone()
         status_constraint_ready = bool(
             constraint
-            and all(status in constraint[0] for status in ("IN_PROGRESS", "SUCCEEDED", "NO_RESULTS"))
+            and all(
+                status in constraint[0]
+                for status in ("IN_PROGRESS", "SUCCEEDED", "NO_RESULTS")
+            )
         )
         available = required_columns <= present_columns and status_constraint_ready
         return ProbeResult(configured=True, available=available)

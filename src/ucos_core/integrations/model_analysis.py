@@ -1,6 +1,7 @@
 """"OpenAI-compatible model adapter for evidence-grounded analysis."""
 
 import os
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -11,7 +12,18 @@ class OpenAICompatibleAnalyzer:
     def __init__(self) -> None:
         self._base_url = os.getenv(
             "ANALYSIS_BASE_URL", "https://api.openai.com/v1"
-        ).rstrip("/")
+        ).strip().rstrip("/")
+        parsed = urlsplit(self._base_url)
+        local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        if (
+            (parsed.scheme != "https" and not local_http)
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise RuntimeError("ANALYSIS_BASE_URL must be HTTPS without embedded credentials")
         self._api_key = os.getenv("ANALYSIS_API_KEY", "").strip()
         self._model = os.getenv("ANALYSIS_MODEL", "gpt-4.1-mini").strip()
 

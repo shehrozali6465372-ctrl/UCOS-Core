@@ -106,3 +106,11 @@ async def test_live_duplicate_is_rejected_and_expired_claim_is_fenced(repository
     await repository.save(req, second_generation, "NO_RESULTS", "", [])
     replay = await repository.claim(req)
     assert replay.status == "NO_RESULTS"
+
+
+def test_schema_probe_confirms_all_claim_migrations(repository):
+    from ucos_core.dependencies import probe_research_schema
+
+    result = probe_research_schema()
+    assert result.configured is True
+    assert result.available is True

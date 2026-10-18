@@ -27,13 +27,15 @@ async def test_research_persists_provenance_before_success() -> None:
                        excerpt="Evidence", retrieved_at="2026-01-01T00:00:00+00:00")
     source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
     auth.authorize.return_value = True
+    repo.claim.return_value = 1
     source.search.return_value = [item]
     analyzer.analyze.return_value = "Finding [1]"
     result = await ResearchService(source, analyzer, auth, repo).execute(request())
     assert result.status == "SUCCEEDED"
     assert result.evidence == [item]
     assert result.persisted is True
-    repo.save.assert_awaited_once()
+    repo.claim.assert_awaited_once_with(request())
+    repo.save.assert_awaited_once_with(request(), 1, "SUCCEEDED", "Finding [1]", [item])
 
 
 @pytest.mark.asyncio
@@ -52,6 +54,7 @@ async def test_persistence_failure_never_returns_success() -> None:
                        excerpt="Evidence", retrieved_at="2026-01-01T00:00:00+00:00")
     source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
     auth.authorize.return_value = True
+    repo.claim.return_value = 1
     source.search.return_value = [item]
     analyzer.analyze.return_value = "Finding [1]"
     repo.save.side_effect = RuntimeError("db down")
@@ -63,6 +66,7 @@ async def test_persistence_failure_never_returns_success() -> None:
 async def test_provider_failure_fails_closed() -> None:
     source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
     auth.authorize.return_value = True
+    repo.claim.return_value = 1
     source.search.side_effect = RuntimeError("provider down")
     with pytest.raises(ResearchUnavailable):
         await ResearchService(source, analyzer, auth, repo).execute(request())

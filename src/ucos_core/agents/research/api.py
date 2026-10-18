@@ -67,6 +67,8 @@ async def research(
     except ResearchConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ResearchBusy as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=409, detail=str(exc), headers={"Retry-After": "5"}
+        ) from exc
     except ResearchUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

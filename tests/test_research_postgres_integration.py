@@ -5,8 +5,8 @@ These tests never target the application's DATABASE_URL.
 """
 
 import os
-from pathlib import Path
-from uuid import uuid4
+import pathlib
+import uuid
 
 import psycopg
 import pytest
@@ -26,7 +26,7 @@ pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="TEST_DATABASE_URL not 
 @pytest.fixture(scope="module", autouse=True)
 def migrated_database():
     assert DATABASE_URL
-    root = Path(__file__).resolve().parents[1]
+    root = pathlib.Path(__file__).resolve().parents[1]
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         for migration in sorted((root / "migrations").glob("*.sql")):
             conn.execute(migration.read_text(encoding="utf-8"))
@@ -46,7 +46,7 @@ def repository(monkeypatch):
 
 def request(request_id=None):
     return ResearchRequest(
-        request_id=request_id or str(uuid4()),
+        request_id=request_id or str(uuid.uuid4()),
         correlation_id="integration-correlation",
         tenant_id="integration-tenant",
         workspace_id="integration-workspace",

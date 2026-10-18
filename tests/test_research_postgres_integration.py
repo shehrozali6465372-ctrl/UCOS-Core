@@ -11,13 +11,6 @@ import uuid
 import psycopg
 import pytest
 
-from ucos_core.agents.research.contracts import ResearchRequest
-from ucos_core.repositories.research_postgres import (
-    PostgresResearchRepository,
-    ResearchIdempotencyConflict,
-    ResearchRequestInProgress,
-)
-
 
 DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="TEST_DATABASE_URL not configured")
@@ -39,12 +32,16 @@ def migrated_database():
 
 @pytest.fixture
 def repository(monkeypatch):
+    from ucos_core.repositories.research_postgres import PostgresResearchRepository
+
     assert DATABASE_URL
     monkeypatch.setenv("DATABASE_URL", DATABASE_URL)
     return PostgresResearchRepository()
 
 
 def request(request_id=None):
+    from ucos_core.agents.research.contracts import ResearchRequest
+
     return ResearchRequest(
         request_id=request_id or str(uuid.uuid4()),
         correlation_id="integration-correlation",
@@ -73,6 +70,8 @@ async def test_claim_persists_then_replays_completed_result(repository):
 
 @pytest.mark.asyncio
 async def test_request_id_metadata_mismatch_is_rejected(repository):
+    from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict
+
     req = request()
     await repository.claim(req)
     changed = req.model_copy(update={"query": "different query"})
@@ -82,6 +81,11 @@ async def test_request_id_metadata_mismatch_is_rejected(repository):
 
 @pytest.mark.asyncio
 async def test_live_duplicate_is_rejected_and_expired_claim_is_fenced(repository):
+    from ucos_core.repositories.research_postgres import (
+        ResearchIdempotencyConflict,
+        ResearchRequestInProgress,
+    )
+
     req = request()
     first_generation = await repository.claim(req)
     with pytest.raises(ResearchRequestInProgress):

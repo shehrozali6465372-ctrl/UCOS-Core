@@ -91,7 +91,7 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     # authentication, the single authorized scope, or provider credentials are absent.
     token_configured = bool(os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip())
     components["research_auth"] = token_configured
-    components["research_scope"] = scope_grant.ready
+    components["research_scope"] = scope_grant.configured and scope_grant.available
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())
     components["analysis_model"] = bool(
         os.getenv("ANALYSIS_API_KEY", "").strip()

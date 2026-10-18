@@ -46,6 +46,7 @@ class OpenAICompatibleAnalyzer:
         payload = {
             "model": self._model,
             "temperature": 0.1,
+            "max_tokens": 3000,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -62,4 +63,6 @@ class OpenAICompatibleAnalyzer:
         content = data["choices"][0]["message"]["content"]
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("analysis model returned empty content")
+        if len(content) > 20_000:
+            raise RuntimeError("analysis model exceeded the response size limit")
         return content.strip()

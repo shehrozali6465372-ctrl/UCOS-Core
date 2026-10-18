@@ -59,3 +59,96 @@ async def test_request_id_reuse_with_different_inputs_conflicts_before_provider_
     source.search.assert_not_awaited()
     analyzer.analyze.assert_not_awaited()
     repository.save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_postgres_repository_replays_matching_row_and_compares_max_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    from ucos_core.repositories import research_postgres
+
+    request = make_request()
+    row = (
+        request.correlation_id,
+        request.tenant_id,
+        request.workspace_id,
+        request.brand_id,
+        request.workflow_id,
+        request.workflow_step_id,
+        request.query,
+        request.max_results,
+        "SUCCEEDED",
+        "Persisted analysis",
+        json.dumps([]),
+    )
+
+    class Cursor:
+        async def fetchone(self):
+            return row
+
+    class Connection:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def execute(self, *_args):
+            return Cursor()
+
+    async def connect(*_args, **_kwargs):
+        return Connection()
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://test/test")
+    monkeypatch.setattr(research_postgres.psycopg.AsyncConnection, "connect", connect)
+    repository = research_postgres.PostgresResearchRepository()
+
+    replay = await repository.get_existing(request)
+    assert replay is not None
+    assert replay.analysis == "Persisted analysis"
+    assert replay.persisted is True
+
+    with pytest.raises(research_postgres.ResearchIdempotencyConflict):
+        await repository.get_existing(request.model_copy(update={"max_results": 4}))
+
+
+@pytest.mark.asyncio
+async def test_postgres_repository_reports_concurrent_duplicate_insert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ucos_core.repositories import research_postgres
+
+    class Cursor:
+        async def fetchone(self):
+            return None
+
+    class Connection:
+        committed = False
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def execute(self, *_args):
+            return Cursor()
+
+        async def commit(self):
+            self.committed = True
+
+    connection = Connection()
+
+    async def connect(*_args, **_kwargs):
+        return connection
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://test/test")
+    monkeypatch.setattr(research_postgres.psycopg.AsyncConnection, "connect", connect)
+    repository = research_postgres.PostgresResearchRepository()
+
+    with pytest.raises(research_postgres.ResearchIdempotencyConflict):
+        await repository.save(make_request(), "NO_RESULTS", "", [])
+
+    assert connection.committed is True

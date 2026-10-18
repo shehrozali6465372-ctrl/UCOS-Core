@@ -47,11 +47,42 @@ def probe_redis() -> ProbeResult:
         return ProbeResult(configured=True, available=False)
 
 
+
+def probe_research_scope() -> ProbeResult:
+    """Verify the configured single scope has an enabled database authorization grant."""
+    names = (
+        "UCOS_RESEARCH_SCOPE_TENANT_ID",
+        "UCOS_RESEARCH_SCOPE_WORKSPACE_ID",
+        "UCOS_RESEARCH_SCOPE_BRAND_ID",
+    )
+    scope = tuple(os.getenv(name, "").strip() for name in names)
+    if not all(scope):
+        return ProbeResult(configured=False, available=False)
+    database_url = _configured_url("DATABASE_URL")
+    if not database_url:
+        return ProbeResult(configured=True, available=False)
+    try:
+        import psycopg
+
+        with psycopg.connect(database_url, connect_timeout=2) as connection:
+            cursor = connection.execute(
+                """SELECT 1 FROM ucos_research_scope_grants
+                   WHERE tenant_id = %s AND workspace_id = %s AND brand_id = %s
+                     AND enabled = TRUE LIMIT 1""",
+                scope,
+            )
+            allowed = cursor.fetchone() is not None
+        return ProbeResult(configured=True, available=allowed)
+    except Exception:
+        return ProbeResult(configured=True, available=False)
+
+
 def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     from ucos_core.readiness import DependencyStatus, evaluate_readiness
 
     postgres = probe_postgres()
     cache = probe_redis()
+    scope_grant = probe_research_scope()
     ready, components = evaluate_readiness(
         postgres=DependencyStatus(postgres.configured, postgres.available),
         redis=DependencyStatus(cache.configured, cache.available),
@@ -66,7 +97,7 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
         "UCOS_RESEARCH_SCOPE_BRAND_ID",
     )
     components["research_auth"] = token_configured
-    components["research_scope"] = all(os.getenv(name, "").strip() for name in scope_names)
+    components["research_scope"] = scope_grant.ready
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())
     components["analysis_model"] = bool(
         os.getenv("ANALYSIS_API_KEY", "").strip()

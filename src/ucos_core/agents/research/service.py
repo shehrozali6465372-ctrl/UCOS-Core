@@ -23,8 +23,13 @@ class ResearchConflict(RuntimeError):
 
 
 class ResearchService:
-    def __init__(self, source: ResearchSource, analyzer: ResearchAnalyzer,
-                 authorizer: ResearchAuthorizer, repository: ResearchRepository) -> None:
+    def __init__(
+        self,
+        source: ResearchSource,
+        analyzer: ResearchAnalyzer,
+        authorizer: ResearchAuthorizer,
+        repository: ResearchRepository,
+    ) -> None:
         self._source = source
         self._analyzer = analyzer
         self._authorizer = authorizer
@@ -45,7 +50,9 @@ class ResearchService:
         try:
             existing = await self._repository.get_existing(request)
         except ResearchIdempotencyConflict as exc:
-            raise ResearchConflict("request_id is already used for different request inputs") from exc
+            raise ResearchConflict(
+                "request_id is already used for different request inputs"
+            ) from exc
         except Exception as exc:
             raise ResearchUnavailable("idempotency lookup failed") from exc
         if isinstance(existing, ResearchResponse):
@@ -65,7 +72,9 @@ class ResearchService:
             try:
                 existing = await self._repository.get_existing(request)
             except ResearchIdempotencyConflict as conflict:
-                raise ResearchConflict("request_id is already used for different request inputs") from conflict
+                raise ResearchConflict(
+                    "request_id is already used for different request inputs"
+                ) from conflict
             except Exception as lookup_exc:
                 raise ResearchUnavailable("idempotency reconciliation failed") from lookup_exc
             if isinstance(existing, ResearchResponse):

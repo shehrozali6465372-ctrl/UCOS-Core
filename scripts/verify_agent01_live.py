@@ -94,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
         with psycopg.connect(database_url, connect_timeout=5) as connection:
             row = connection.execute(
                 """SELECT correlation_id, tenant_id, workspace_id, brand_id,
+                          workflow_id, workflow_step_id, query_text, max_results,
                           status, analysis_text, evidence_json
                    FROM ucos_research_runs WHERE request_id = %s""",
                 (request_id,),
@@ -101,14 +102,18 @@ def main(argv: list[str] | None = None) -> int:
         if row is None:
             raise RuntimeError("request result was not found in PostgreSQL")
         expected_evidence = first_payload.get("evidence", [])
-        stored_evidence = row[6]
+        stored_evidence = row[10]
         if isinstance(stored_evidence, str):
             stored_evidence = json.loads(stored_evidence)
         if (
             row[0] != request["correlation_id"]
             or tuple(row[1:4]) != scope
-            or row[4] != first_payload["status"]
-            or row[5] != first_payload.get("analysis", "")
+            or row[4] != request["workflow_id"]
+            or row[5] != request["workflow_step_id"]
+            or row[6] != request["query"]
+            or row[7] != request["max_results"]
+            or row[8] != first_payload["status"]
+            or row[9] != first_payload.get("analysis", "")
             or stored_evidence != expected_evidence
         ):
             raise RuntimeError("persisted PostgreSQL result does not match API response")

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 
 from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
 from ucos_core.agents.research.service import (
+    ResearchBusy,
     ResearchConflict,
     ResearchForbidden,
     ResearchService,
@@ -64,6 +65,8 @@ async def research(
     except ResearchForbidden as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ResearchConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ResearchBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ResearchUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

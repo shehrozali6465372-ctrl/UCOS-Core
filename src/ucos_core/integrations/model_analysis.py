@@ -60,7 +60,10 @@ class OpenAICompatibleAnalyzer:
             )
             response.raise_for_status()
             data = response.json()
-        content = data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        if choice.get("finish_reason") == "length":
+            raise RuntimeError("analysis completion was truncated")
+        content = choice["message"]["content"]
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("analysis model returned empty content")
         if len(content) > 20_000:

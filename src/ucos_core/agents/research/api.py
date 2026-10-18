@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 
 from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
 from ucos_core.agents.research.service import (
+    ResearchConflict,
     ResearchForbidden,
     ResearchService,
     ResearchUnavailable,
@@ -39,10 +40,7 @@ def _authorize_configured_scope(request: ResearchRequest) -> None:
     )
     configured = tuple(os.getenv(name, "").strip() for name in names)
     if not all(configured):
-        raise HTTPException(
-            status_code=503,
-            detail="research token scope is not configured",
-        )
+        raise HTTPException(status_code=503, detail="research token scope is not configured")
     requested = (request.tenant_id, request.workspace_id, request.brand_id)
     matches = (
         hmac.compare_digest(actual, expected)
@@ -65,5 +63,7 @@ async def research(
         return await _service.execute(request)
     except ResearchForbidden as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ResearchConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ResearchUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

@@ -3,6 +3,7 @@
 CI supplies TEST_DATABASE_URL pointing at an ephemeral PostgreSQL service.
 These tests never target the application's DATABASE_URL.
 """
+
 import os
 from pathlib import Path
 from uuid import uuid4

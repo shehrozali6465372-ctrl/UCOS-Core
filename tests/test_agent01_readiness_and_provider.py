@@ -1,5 +1,6 @@
 """Boundary tests for readiness gates and provider response validation."""
 
+import json
 from unittest.mock import patch
 
 import httpx
@@ -125,7 +126,5 @@ async def test_model_adapter_bounds_completion_and_requests_token_limit(monkeypa
         )
         with pytest.raises(RuntimeError, match="response size limit"):
             await OpenAICompatibleAnalyzer().analyze("question", [item])
-
-    import json
 
     assert json.loads(captured["payload"])["max_tokens"] == 3000

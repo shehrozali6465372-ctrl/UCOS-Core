@@ -1,6 +1,8 @@
 """Boundary tests for readiness gates and provider response validation."""
+
 from unittest.mock import patch
 
+import httpx
 import pytest
 
 from ucos_core.dependencies import ProbeResult, required_dependencies_ready
@@ -67,18 +69,14 @@ def test_model_adapter_rejects_endpoint_with_embedded_credentials(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tavily_filters_malformed_and_credential_bearing_urls(monkeypatch):
-    import httpx
-    from unittest.mock import patch
-
-    from ucos_core.integrations.tavily_research import TavilyResearchSource
-
     monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+
     async def handler(_request):
         return httpx.Response(
             200,
             json={
                 "results": [
-                    {"url": "javascript:alert(1)", "title": "bad", "content": "x"},
+                    {"url": "ftp://example.com/path", "title": "bad", "content": "x"},
                     {"url": "https://user:pass@example.com/path", "title": "bad", "content": "x"},
                     {"url": "https://example.com/good", "title": "good", "content": "safe"},
                 ]

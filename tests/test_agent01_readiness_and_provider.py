@@ -92,3 +92,40 @@ async def test_tavily_filters_malformed_and_credential_bearing_urls(monkeypatch)
 
     assert len(evidence) == 1
     assert evidence[0].url == "https://example.com/good"
+
+
+@pytest.mark.asyncio
+async def test_model_adapter_bounds_completion_and_requests_token_limit(monkeypatch):
+    from ucos_core.agents.research.contracts import EvidenceItem
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "https://example.com/v1")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "test-key")
+    monkeypatch.setenv("ANALYSIS_MODEL", "test-model")
+    captured = {}
+
+    async def handler(request):
+        captured["payload"] = await request.aread()
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "x" * 20_001}}]},
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.model_analysis.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        item = EvidenceItem(
+            source="tavily",
+            title="Source",
+            url="https://example.com/source",
+            excerpt="Evidence",
+            retrieved_at="2026-01-01T00:00:00+00:00",
+        )
+        with pytest.raises(RuntimeError, match="response size limit"):
+            await OpenAICompatibleAnalyzer().analyze("question", [item])
+
+    import json
+
+    assert json.loads(captured["payload"])["max_tokens"] == 3000

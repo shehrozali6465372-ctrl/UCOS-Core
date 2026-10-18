@@ -32,6 +32,7 @@ def test_liveness_does_not_depend_on_databases(monkeypatch):
         assert client.get("/health/live").status_code == 200
         assert client.get("/health/ready").status_code == 503
 
+
 def test_readiness_fails_closed_without_auth_scope_or_provider_config(monkeypatch):
     from ucos_core.dependencies import ProbeResult
 
@@ -41,7 +42,7 @@ def test_readiness_fails_closed_without_auth_scope_or_provider_config(monkeypatc
     )
     monkeypatch.setattr(
         "ucos_core.dependencies.probe_redis",
-        lambda: __import__("ucos_core.dependencies", fromlist=["ProbeResult"]).ProbeResult(True, True),
+        lambda: ProbeResult(True, True),
     )
     for name in (
         "UCOS_RESEARCH_API_TOKEN",
@@ -52,6 +53,8 @@ def test_readiness_fails_closed_without_auth_scope_or_provider_config(monkeypatc
         "ANALYSIS_API_KEY",
     ):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("ANALYSIS_MODEL", raising=False)
+    monkeypatch.delenv("ANALYSIS_BASE_URL", raising=False)
 
     from ucos_core.dependencies import required_dependencies_ready
 

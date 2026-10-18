@@ -31,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
 
     base_url = os.getenv("UCOS_AGENT01_BASE_URL", "").strip().rstrip("/")
     token = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
-    database_url = os.getenv("DATABASE_URL", "").strip()
+    database_url = os.getenv("UCOS_AGENT01_VERIFY_DATABASE_URL", "").strip()
     scope_names = (
         "UCOS_RESEARCH_SCOPE_TENANT_ID",
         "UCOS_RESEARCH_SCOPE_WORKSPACE_ID",

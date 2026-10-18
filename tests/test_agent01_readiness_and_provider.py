@@ -47,3 +47,19 @@ async def test_tavily_adapter_fails_closed_without_credentials(monkeypatch):
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="TAVILY_API_KEY is not configured"):
         await TavilyResearchSource().search("a research query", 3)
+
+
+def test_model_adapter_rejects_insecure_remote_endpoint(monkeypatch):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "http://external.example/v1")
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
+        OpenAICompatibleAnalyzer()
+
+
+def test_model_adapter_rejects_endpoint_with_embedded_credentials(monkeypatch):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "https://user:pass@example.com/v1")
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
+        OpenAICompatibleAnalyzer()

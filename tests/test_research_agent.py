@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from ucos_core.agents.research import api as research_api
 from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest
 from ucos_core.agents.research.service import (
+    ResearchBusy,
+    ResearchConflict,
     ResearchForbidden,
     ResearchService,
     ResearchUnavailable,
@@ -145,3 +147,41 @@ def test_api_accepts_only_configured_scope(
     )
     assert response.status_code == 200
     service.execute.assert_awaited_once()
+
+
+def test_api_returns_conflict_when_request_is_already_in_progress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ucos_core.agents.research.contracts import ResearchResponse
+
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.execute.side_effect = ResearchBusy("already processing")
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 409
+
+
+def test_api_returns_conflict_for_request_id_reuse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.execute.side_effect = ResearchConflict("request ID reused")
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 409

@@ -22,6 +22,7 @@ def test_readiness_requires_provider_credentials_and_granted_scope(monkeypatch):
         patch("ucos_core.dependencies.probe_postgres", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
     ):
         ready, components = required_dependencies_ready()
     assert ready is True
@@ -39,6 +40,7 @@ def test_readiness_fails_when_scope_grant_is_missing(monkeypatch):
         patch("ucos_core.dependencies.probe_postgres", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, False)),
+        patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False

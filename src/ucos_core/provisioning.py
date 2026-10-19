@@ -68,9 +68,9 @@ def provision_scope(
                 existing = conn.execute(
                     """
                     SELECT request.actor, request.tenant_id, request.workspace_id,
-                           request.brand_id, grant.enabled
+                           request.brand_id, scope_grant.enabled
                     FROM ucos_scope_provisioning_requests AS request
-                    JOIN ucos_research_scope_grants AS grant
+                    JOIN ucos_research_scope_grants AS scope_grant
                       USING (tenant_id, workspace_id, brand_id)
                     WHERE request.idempotency_key = %s
                     FOR UPDATE OF request

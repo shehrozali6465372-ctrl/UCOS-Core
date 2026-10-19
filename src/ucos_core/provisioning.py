@@ -163,7 +163,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if not args.idempotency_key or not args.idempotency_key.strip():
             print(
-                "--idempotency-key is required when creating a scope; reuse the same key on retries.",
+                "--idempotency-key is required when creating a scope; "
+                "reuse the same key on retries.",
                 file=sys.stderr,
             )
             return 2
@@ -173,7 +174,8 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:
         # Avoid printing exception details that may contain connection data.
         print(
-            "Provisioning failed. Check migrations, database permissions, actor, and idempotency key.",
+            "Provisioning failed. Check migrations, database permissions, "
+            "actor, and idempotency key.",
             file=sys.stderr,
         )
         return 1

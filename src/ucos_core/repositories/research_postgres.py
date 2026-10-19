@@ -30,7 +30,12 @@ class PostgresResearchRepository:
             request.correlation_id, request.tenant_id, request.workspace_id, request.brand_id,
             request.workflow_id, request.workflow_step_id, request.query, request.max_results,
         )
-        if tuple(row[:8]) != expected:
+        # Legacy rows predate max_results persistence. A NULL value means the
+        # original value is unknowable, so validate all known inputs and replay
+        # the stored result instead of inventing a mismatch.
+        known_inputs_match = tuple(row[:7]) == expected[:7]
+        max_results_matches = row[7] is None or row[7] == expected[7]
+        if not known_inputs_match or not max_results_matches:
             raise ResearchIdempotencyConflict(
                 "request_id is already associated with different request inputs"
             )

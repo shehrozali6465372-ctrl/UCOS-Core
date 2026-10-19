@@ -70,6 +70,26 @@ async def test_claim_persists_then_replays_completed_result(repository):
 
 
 @pytest.mark.asyncio
+async def test_completed_legacy_row_with_unknown_max_results_is_replayed(repository):
+    req = request()
+    generation = await repository.claim(req)
+    await repository.save(req, generation, "SUCCEEDED", "legacy analysis", [])
+
+    # Simulate a completed row created before max_results was persisted.
+    async with await psycopg.AsyncConnection.connect(DATABASE_URL) as conn:
+        await conn.execute(
+            "UPDATE ucos_research_runs SET max_results = NULL WHERE request_id = %s",
+            (req.request_id,),
+        )
+
+    retry = req.model_copy(update={"max_results": 7})
+    replay = await repository.claim(retry)
+    assert replay.status == "SUCCEEDED"
+    assert replay.analysis == "legacy analysis"
+    assert replay.persisted is True
+
+
+@pytest.mark.asyncio
 async def test_request_id_metadata_mismatch_is_rejected(repository):
     from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict
 

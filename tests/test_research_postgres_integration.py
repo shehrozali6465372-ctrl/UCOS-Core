@@ -135,3 +135,22 @@ def test_schema_probe_confirms_all_claim_migrations(repository):
     result = probe_research_schema()
     assert result.configured is True
     assert result.available is True
+
+
+
+@pytest.mark.asyncio
+async def test_release_expires_only_the_current_generation(repository):
+    req = request()
+    first_generation = await repository.claim(req)
+    await repository.release(req, first_generation)
+
+    retry_generation = await repository.claim(req)
+    assert retry_generation > first_generation
+
+    # A delayed release from an older worker cannot shorten the new lease.
+    await repository.release(req, first_generation)
+    from ucos_core.repositories.research_postgres import ResearchRequestInProgress
+
+    with pytest.raises(ResearchRequestInProgress):
+        await repository.claim(req)
+    await repository.save(req, retry_generation, "NO_RESULTS", "", [])

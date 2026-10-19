@@ -212,3 +212,37 @@ def test_api_unicode_scope_mismatch_returns_forbidden(
         headers={"Authorization": "Bearer correct-secret"},
     )
     assert response.status_code == 403
+
+
+
+@pytest.mark.asyncio
+async def test_provider_failure_releases_claim_for_safe_retry() -> None:
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = True
+    repo.claim.return_value = 17
+    source.search.side_effect = RuntimeError("provider temporarily unavailable")
+
+    with pytest.raises(ResearchUnavailable):
+        await ResearchService(source, analyzer, auth, repo).execute(request())
+
+    repo.release.assert_awaited_once_with(request(), 17)
+    repo.save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_save_failure_releases_only_current_claim() -> None:
+    item = EvidenceItem(
+        source="tavily", title="Report", url="https://example.com",
+        excerpt="Evidence", retrieved_at="2026-01-01T00:00:00+00:00",
+    )
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = True
+    repo.claim.return_value = 23
+    source.search.return_value = [item]
+    analyzer.analyze.return_value = "Finding [1]"
+    repo.save.side_effect = RuntimeError("database temporarily unavailable")
+
+    with pytest.raises(ResearchUnavailable):
+        await ResearchService(source, analyzer, auth, repo).execute(request())
+
+    repo.release.assert_awaited_once_with(request(), 23)

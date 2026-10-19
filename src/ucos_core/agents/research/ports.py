@@ -20,6 +20,10 @@ class ResearchAuthorizer(Protocol):
 class ResearchRepository(Protocol):
     async def claim(self, request: ResearchRequest) -> int | ResearchResponse: ...
 
+    async def release(
+        self, request: ResearchRequest, generation: int
+    ) -> None: ...
+
     async def save(
         self,
         request: ResearchRequest,

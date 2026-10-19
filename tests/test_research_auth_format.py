@@ -2,7 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-from ucos_core.agents.research import api as research_api
 from ucos_core.main import app
 
 

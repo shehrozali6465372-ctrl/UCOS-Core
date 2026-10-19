@@ -32,10 +32,10 @@ Apply `migrations/001_agent01_research.sql` to the configured PostgreSQL databas
 
 For a single-owner initial deployment with no existing identity/admin system, an operator can create one UUID-based scope using the explicit provisioning command. This is not a public admin API and does not enable multi-tenant self-service.
 
-1. Apply `migrations/001_agent01_research.sql` and `migrations/002_scope_provisioning_audit.sql` to the intended database using a controlled migration process.
+1. Apply `migrations/001_agent01_research.sql`, `migrations/002_scope_provisioning_audit.sql`, and `migrations/005_scope_provisioning_idempotency.sql` to the intended database using a controlled migration process.
 2. Use a dedicated, least-privilege provisioning database role and set its connection string in `UCOS_PROVISIONING_DATABASE_URL`. Do not reuse the application database credential if you can avoid it.
 3. Set `UCOS_PROVISIONING_ACTOR` to an operator identity suitable for the audit record (do not put a password or token there).
-4. Run `python -m ucos_core.provisioning --confirm` in a controlled operator environment. Without `--confirm`, the command makes no changes. It prints the three generated IDs only after the database transaction succeeds.
+4. Run `python -m ucos_core.provisioning --idempotency-key INITIAL-SETUP-2026-01 --confirm` in a controlled operator environment. Choose a unique, non-secret key for each distinct provisioning intent, and reuse exactly the same key if retrying after an uncertain outcome. A repeated key returns the same enabled scope instead of creating duplicates; a key owned by another actor or associated with a disabled scope is rejected. Without `--confirm`, the command makes no changes. It prints the scope IDs only after the transaction succeeds.
 5. Store the returned IDs in the approved deployment record and configure the matching `UCOS_RESEARCH_SCOPE_TENANT_ID`, `UCOS_RESEARCH_SCOPE_WORKSPACE_ID`, and `UCOS_RESEARCH_SCOPE_BRAND_ID` values in Render. Never paste secrets into source control or chat.
 6. To revoke a scope, run `python -m ucos_core.provisioning --disable TENANT_ID WORKSPACE_ID BRAND_ID --confirm` with the same operator environment. This disables the grant and records an audit event in one transaction; it does not delete research history. Remove or rotate the matching Render scope configuration as part of the operator's revocation procedure.
 7. Verify the grant with a read-only query before enabling traffic:

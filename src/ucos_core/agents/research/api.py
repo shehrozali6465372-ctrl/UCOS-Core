@@ -18,6 +18,11 @@ router = APIRouter(prefix="/v1/agents/01/research", tags=["agent-01"])
 _service: ResearchService | None = None
 
 
+def _constant_time_equal(actual: str, expected: str) -> bool:
+    """Compare UTF-8 bytes so arbitrary Unicode input fails closed, not with TypeError."""
+    return hmac.compare_digest(actual.encode("utf-8"), expected.encode("utf-8"))
+
+
 def configure_research_service(service: ResearchService) -> None:
     global _service
     _service = service
@@ -28,7 +33,7 @@ def _authenticate(authorization: str | None) -> None:
     if not expected:
         raise HTTPException(status_code=503, detail="research authentication is not configured")
     scheme, _, token = (authorization or "").partition(" ")
-    if scheme.casefold() != "bearer" or not token or not hmac.compare_digest(token, expected):
+    if scheme.casefold() != "bearer" or not token or not _constant_time_equal(token, expected):
         raise HTTPException(status_code=401, detail="invalid bearer token")
 
 
@@ -44,7 +49,7 @@ def _authorize_configured_scope(request: ResearchRequest) -> None:
         raise HTTPException(status_code=503, detail="research token scope is not configured")
     requested = (request.tenant_id, request.workspace_id, request.brand_id)
     matches = (
-        hmac.compare_digest(actual, expected)
+        _constant_time_equal(actual, expected)
         for actual, expected in zip(requested, configured, strict=True)
     )
     if not all(matches):

@@ -19,8 +19,12 @@ class TavilyResearchSource:
         async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=5.0)) as client:
             response = await client.post(
                 "https://api.tavily.com/search",
-                json={"api_key": self._api_key, "query": query,
-                      "max_results": max_results, "search_depth": "advanced"},
+                headers={"Authorization": f"Bearer {self._api_key}"},
+                json={
+                    "query": query,
+                    "max_results": max_results,
+                    "search_depth": "advanced",
+                },
             )
             response.raise_for_status()
             payload = response.json()
@@ -44,8 +48,13 @@ class TavilyResearchSource:
                 safe_url = False
             if not safe_url:
                 continue
-            items.append(EvidenceItem(
-                source="tavily", title=str(title or url)[:500], url=url,
-                excerpt=str(item.get("content", ""))[:8000], retrieved_at=timestamp,
-            ))
+            items.append(
+                EvidenceItem(
+                    source="tavily",
+                    title=str(title or url)[:500],
+                    url=url,
+                    excerpt=str(item.get("content", ""))[:8000],
+                    retrieved_at=timestamp,
+                )
+            )
         return items[:max_results]

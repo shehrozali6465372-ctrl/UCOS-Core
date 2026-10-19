@@ -5,7 +5,6 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from ucos_core.agents.research.contracts import EvidenceItem
 from ucos_core.integrations.tavily_research import TavilyResearchSource
 
 

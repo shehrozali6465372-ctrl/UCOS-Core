@@ -149,8 +149,7 @@ async def test_release_expires_only_the_current_generation(repository):
 
     # A delayed release from an older worker cannot shorten the new lease.
     await repository.release(req, first_generation)
-    with pytest.raises(Exception) as error:
-        await repository.claim(req)
     from ucos_core.repositories.research_postgres import ResearchRequestInProgress
-    assert isinstance(error.value, ResearchRequestInProgress)
+    with pytest.raises(ResearchRequestInProgress):
+        await repository.claim(req)
     await repository.save(req, retry_generation, "NO_RESULTS", "", [])

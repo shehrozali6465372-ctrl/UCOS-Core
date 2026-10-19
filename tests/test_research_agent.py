@@ -183,3 +183,32 @@ def test_api_returns_conflict_for_request_id_reuse(
         headers={"Authorization": "Bearer correct-secret"},
     )
     assert response.status_code == 409
+
+
+def test_api_rejects_non_ascii_bearer_token_without_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer \\xff"},
+    )
+    assert response.status_code == 401
+
+
+def test_api_unicode_scope_mismatch_returns_forbidden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "correct-secret")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-allowed")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    payload = request().model_dump()
+    payload["tenant_id"] = "tenant-☃"
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/v1/agents/01/research",
+        json=payload,
+        headers={"Authorization": "Bearer correct-secret"},
+    )
+    assert response.status_code == 403

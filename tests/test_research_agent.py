@@ -192,7 +192,7 @@ def test_api_rejects_non_ascii_bearer_token_without_server_error(
     response = TestClient(app, raise_server_exceptions=False).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer \xff"},
+        headers=[(b"Authorization", b"Bearer \xff")],
     )
     assert response.status_code == 401
 

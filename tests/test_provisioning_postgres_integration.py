@@ -3,6 +3,7 @@
 CI supplies TEST_DATABASE_URL pointing at an ephemeral PostgreSQL service.
 These tests do not use the application's DATABASE_URL or production systems.
 """
+from concurrent.futures import ThreadPoolExecutor
 import os
 import pathlib
 import uuid
@@ -68,6 +69,40 @@ def test_same_key_retry_returns_same_scope_without_duplicate_grants_or_audit():
     assert grant_count == 1
     assert audit_count == 1
     assert request_count == 1
+
+
+def test_concurrent_same_key_requests_create_only_one_scope():
+    key = f"provisioning-concurrent-{uuid.uuid4()}"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(
+            lambda _: provision_scope(DATABASE_URL, ACTOR, key),
+            range(2),
+        ))
+
+    assert results[0] == results[1]
+    scope = results[0]
+    assert fetch_one(
+        """SELECT enabled FROM ucos_research_scope_grants
+           WHERE tenant_id = %s AND workspace_id = %s AND brand_id = %s""",
+        scope,
+    ) == (True,)
+    assert fetch_one(
+        """SELECT count(*) FROM ucos_research_scope_grants
+           WHERE tenant_id = %s AND workspace_id = %s AND brand_id = %s""",
+        scope,
+    )[0] == 1
+    assert fetch_one(
+        """SELECT count(*) FROM ucos_scope_provisioning_audit
+           WHERE tenant_id = %s AND workspace_id = %s AND brand_id = %s
+             AND action = 'SCOPE_CREATED'""",
+        scope,
+    )[0] == 1
+    assert fetch_one(
+        """SELECT count(*) FROM ucos_scope_provisioning_requests
+           WHERE idempotency_key = %s AND actor = %s
+             AND tenant_id = %s AND workspace_id = %s AND brand_id = %s""",
+        (key, ACTOR, *scope),
+    )[0] == 1
 
 
 def test_same_key_cannot_be_reused_by_another_actor():

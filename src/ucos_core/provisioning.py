@@ -1,8 +1,8 @@
 """Explicit operator-run provisioning and revocation for Agent 01 scopes.
 
-Create a scope:
+Create a scope (the key must be reused when retrying the same operation):
   UCOS_PROVISIONING_DATABASE_URL=... UCOS_PROVISIONING_ACTOR=... \
-  python -m ucos_core.provisioning --confirm
+  python -m ucos_core.provisioning --idempotency-key INITIAL-SETUP-2026-01 --confirm
 
 Disable a scope:
   UCOS_PROVISIONING_DATABASE_URL=... UCOS_PROVISIONING_ACTOR=... \
@@ -30,6 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="required to write the grant and audit record to PostgreSQL",
     )
     parser.add_argument(
+        "--idempotency-key",
+        help="stable key for one scope-creation intent; reuse it on retries",
+    )
+    parser.add_argument(
         "--disable",
         nargs=3,
         metavar=("TENANT_ID", "WORKSPACE_ID", "BRAND_ID"),
@@ -38,11 +42,51 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def provision_scope(database_url: str, actor: str) -> tuple[str, str, str]:
-    """Create a UUID-based single-owner scope and audit it in one transaction."""
+def provision_scope(
+    database_url: str, actor: str, idempotency_key: str
+) -> tuple[str, str, str]:
+    """Create a scope once; retries with the same key return its existing IDs."""
+    key = idempotency_key.strip()
+    if not key or len(key) > 200:
+        raise ValueError("idempotency key must contain 1 to 200 non-whitespace characters")
+
     tenant_id, workspace_id, brand_id = (str(uuid.uuid4()) for _ in range(3))
     with psycopg.connect(database_url, connect_timeout=5) as conn:
         with conn.transaction():
+            inserted = conn.execute(
+                """
+                INSERT INTO ucos_scope_provisioning_requests
+                    (idempotency_key, actor, tenant_id, workspace_id, brand_id)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (idempotency_key) DO NOTHING
+                RETURNING tenant_id, workspace_id, brand_id
+                """,
+                (key, actor, tenant_id, workspace_id, brand_id),
+            ).fetchone()
+
+            if inserted is None:
+                existing = conn.execute(
+                    """
+                    SELECT request.actor, request.tenant_id, request.workspace_id,
+                           request.brand_id, scope_grant.enabled
+                    FROM ucos_scope_provisioning_requests AS request
+                    JOIN ucos_research_scope_grants AS scope_grant
+                      USING (tenant_id, workspace_id, brand_id)
+                    WHERE request.idempotency_key = %s
+                    FOR UPDATE OF request
+                    """,
+                    (key,),
+                ).fetchone()
+                if existing is None:
+                    raise RuntimeError("idempotency record missing after key conflict")
+                existing_actor, *scope_and_enabled = existing
+                if existing_actor != actor:
+                    raise ValueError("idempotency key was already used by a different actor")
+                existing_tenant, existing_workspace, existing_brand, enabled = scope_and_enabled
+                if not enabled:
+                    raise ValueError("idempotency key belongs to a disabled scope")
+                return existing_tenant, existing_workspace, existing_brand
+
             conn.execute(
                 """
                 INSERT INTO ucos_research_scope_grants
@@ -117,16 +161,26 @@ def main(argv: list[str] | None = None) -> int:
             disable_scope(database_url, actor, *args.disable)
             print("Scope grant disabled and audit event recorded.")
             return 0
-        tenant_id, workspace_id, brand_id = provision_scope(database_url, actor)
+        if not args.idempotency_key or not args.idempotency_key.strip():
+            print(
+                "--idempotency-key is required when creating a scope; "
+                "reuse the same key on retries.",
+                file=sys.stderr,
+            )
+            return 2
+        tenant_id, workspace_id, brand_id = provision_scope(
+            database_url, actor, args.idempotency_key
+        )
     except Exception:
         # Avoid printing exception details that may contain connection data.
         print(
-            "Provisioning failed. Check migrations, database permissions, and scope IDs.",
+            "Provisioning failed. Check migrations, database permissions, "
+            "actor, and idempotency key.",
             file=sys.stderr,
         )
         return 1
 
-    print("Scope created. Save these identifiers in your approved deployment record:")
+    print("Scope is provisioned. Save these identifiers in your approved deployment record:")
     print(f"UCOS_RESEARCH_SCOPE_TENANT_ID={tenant_id}")
     print(f"UCOS_RESEARCH_SCOPE_WORKSPACE_ID={workspace_id}")
     print(f"UCOS_RESEARCH_SCOPE_BRAND_ID={brand_id}")

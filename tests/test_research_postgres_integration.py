@@ -26,6 +26,7 @@ def migrated_database():
             conn.execute(migration.read_text(encoding="utf-8"))
     yield
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+        conn.execute("DROP TABLE IF EXISTS ucos_scope_provisioning_requests CASCADE")
         conn.execute("DROP TABLE IF EXISTS ucos_scope_provisioning_audit CASCADE")
         conn.execute("DROP TABLE IF EXISTS ucos_research_runs CASCADE")
         conn.execute("DROP TABLE IF EXISTS ucos_research_scope_grants CASCADE")

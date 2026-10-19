@@ -21,10 +21,10 @@ This runbook is an operator checklist, not authorization to mutate production. K
 
 ## 2. Database migration
 
-- [ ] Confirm migrations 001–004 match the reviewed commit.
+- [ ] Confirm migrations 001–005 match the reviewed commit.
 - [ ] Apply migrations through the approved migration process using a migration credential, not the application runtime credential.
 - [ ] Verify `ucos_research_runs` contains `max_results`, `claim_expires_at`, and `claim_generation`, and its status constraint permits `IN_PROGRESS`, `SUCCEEDED`, and `NO_RESULTS`.
-- [ ] Verify `ucos_research_scope_grants` and `ucos_scope_provisioning_audit` exist.
+- [ ] Verify `ucos_research_scope_grants`, `ucos_scope_provisioning_audit`, and `ucos_scope_provisioning_requests` exist.
 - [ ] Do not create a scope until the production owner approves the exact tenant/workspace/brand ownership and actor identity.
 
 ## 3. Scope provisioning
@@ -32,10 +32,11 @@ This runbook is an operator checklist, not authorization to mutate production. K
 Run the operator command from an authorized environment only after the preceding approval and migration checks. Supply `UCOS_PROVISIONING_DATABASE_URL` and `UCOS_PROVISIONING_ACTOR` via the approved secret mechanism. Then run:
 
 ```sh
-python -m ucos_core.provisioning --confirm
+python -m ucos_core.provisioning --idempotency-key INITIAL-SETUP-2026-01 --confirm
 ```
 
 - [ ] Record the generated tenant/workspace/brand IDs in the approved deployment record (not source control or public issue comments).
+- [ ] Reuse the same idempotency key only when retrying this exact provisioning intent; use a new key for a distinct approved operation.
 - [ ] Configure those exact IDs in Render and verify the enabled grant is present in PostgreSQL.
 - [ ] Confirm the provisioning audit row records the actor and `SCOPE_CREATED`.
 - [ ] Ensure the bearer token is scoped only to that exact configured tenant/workspace/brand tuple.

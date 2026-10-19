@@ -34,7 +34,7 @@ def test_api_rejects_tab_separated_bearer_scheme(monkeypatch):
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=_payload(),
-        headers={"Authorization": "Bearer\\tcorrect-secret"},
+        headers={"Authorization": "Bearer\tcorrect-secret"},
     )
     assert response.status_code == 401
 

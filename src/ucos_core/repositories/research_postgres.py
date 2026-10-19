@@ -109,6 +109,25 @@ class PostgresResearchRepository:
                     raise ResearchRequestInProgress("a live claim already exists")
                 return int(takeover_row[0])
 
+    async def release(self, request: ResearchRequest, generation: int) -> None:
+        """Expire a failed worker's own lease without disturbing a newer owner.
+
+        The generation predicate fences stale workers. A concurrent retry can
+        take over only after this update commits and will receive a new generation.
+        """
+        async with await psycopg.AsyncConnection.connect(
+            self._database_url(), connect_timeout=3
+        ) as conn:
+            await conn.execute(
+                """UPDATE ucos_research_runs
+                   SET claim_expires_at = now() - interval '1 second'
+                   WHERE request_id = %s AND tenant_id = %s AND workspace_id = %s
+                     AND brand_id = %s AND status = 'IN_PROGRESS'
+                     AND claim_generation = %s""",
+                (request.request_id, request.tenant_id, request.workspace_id,
+                 request.brand_id, generation),
+            )
+
     async def save(
         self,
         request: ResearchRequest,

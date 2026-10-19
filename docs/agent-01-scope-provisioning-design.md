@@ -2,7 +2,7 @@
 
 ## Status
 
-Design-only proposal. This document does not create tenant identities, database grants, API credentials, or production configuration. The existing Agent 01 endpoint currently supports one explicitly configured tenant/workspace/brand scope per service token and separately requires an enabled row in `public.ucos_research_scope_grants`.
+Design and implementation contract. The controlled CLI and database idempotency ledger are implemented in `src/ucos_core/provisioning.py` and migrations `002_scope_provisioning_audit.sql` / `005_scope_provisioning_idempotency.sql`. This document does not authorize production writes or create credentials/configuration. The existing Agent 01 endpoint currently supports one explicitly configured tenant/workspace/brand scope per service token and separately requires an enabled row in `public.ucos_research_scope_grants`.
 
 ## Current blocker
 

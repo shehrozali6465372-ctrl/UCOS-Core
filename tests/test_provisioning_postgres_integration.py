@@ -3,10 +3,10 @@
 CI supplies TEST_DATABASE_URL pointing at an ephemeral PostgreSQL service.
 These tests do not use the application's DATABASE_URL or production systems.
 """
-from concurrent.futures import ThreadPoolExecutor
 import os
 import pathlib
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import psycopg
 import pytest

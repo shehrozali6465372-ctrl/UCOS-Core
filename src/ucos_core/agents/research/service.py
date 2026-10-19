@@ -69,15 +69,20 @@ class ResearchService:
         try:
             evidence = await self._source.search(request.query, request.max_results)
             analysis = await self._analyzer.analyze(request.query, evidence) if evidence else ""
-        except Exception as exc:
-            raise ResearchUnavailable("research provider failed") from exc
-        status = "SUCCEEDED" if evidence else "NO_RESULTS"
-        try:
+            status = "SUCCEEDED" if evidence else "NO_RESULTS"
             await self._repository.save(request, generation, status, analysis, evidence)
         except ResearchIdempotencyConflict as exc:
+            # A stale worker cannot release or overwrite the newer generation.
             raise ResearchConflict("request claim was superseded or conflicted") from exc
         except Exception as exc:
-            raise ResearchUnavailable("durable persistence failed") from exc
+            try:
+                await self._repository.release(request, generation)
+            except Exception:
+                # The lease expiry is the final recovery path if the database
+                # cannot accept an early release. Never hide the original fault.
+                pass
+            raise ResearchUnavailable("research provider or durable persistence failed") from exc
+
         return ResearchResponse(
             request_id=request.request_id,
             correlation_id=request.correlation_id,

@@ -32,8 +32,16 @@ def _authenticate(authorization: str | None) -> None:
     expected = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="research authentication is not configured")
-    scheme, _, token = (authorization or "").partition(" ")
-    if scheme.casefold() != "bearer" or not token or not _constant_time_equal(token, expected):
+    scheme, separator, token = (authorization or "").partition(" ")
+    # HTTP authentication uses one scheme/token separator; reject empty or
+    # whitespace-padded credentials instead of accepting accidental formatting.
+    if (
+        not separator
+        or scheme.casefold() != "bearer"
+        or not token
+        or token != token.strip()
+        or not _constant_time_equal(token, expected)
+    ):
         raise HTTPException(status_code=401, detail="invalid bearer token")
 
 

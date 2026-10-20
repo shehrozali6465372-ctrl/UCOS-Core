@@ -131,3 +131,9 @@ This section supersedes the older point-in-time snapshot above where it differs.
 
 - Manual Neon snapshot `snap-falling-snow-azcy9onf` (`ucos-core-pre-production-migration-2026-10-20`) was created from production/default branch `br-dark-pond-azjzxzmd`; it expires at `2026-11-03T00:00:00Z`.
 - Snapshot existence is verified. A restore drill has **not** been performed; do not mark the restore/rollback checklist complete until recovery instructions and restore behaviour have been reviewed.
+
+
+### Automated backup scheduling limitation — 2026-10-20
+
+- Attempted to configure daily snapshots with 14-day retention on the production/default Neon branch. Neon rejected schedule creation because automated backup scheduling is not enabled for this project. The schedule remains unconfigured.
+- The manual pre-migration snapshot above exists, but automatic backup coverage is still a blocker. Owner must enable an available backup policy in Neon or establish an approved recurring manual snapshot process; verify a restore drill before production migration.

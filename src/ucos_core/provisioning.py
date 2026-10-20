@@ -100,7 +100,8 @@ def provision_scope(
                     # the original scope IDs/key/actor. Existing disabled
                     # grants are never re-enabled by an idempotent retry.
                     raise RuntimeError(
-                        "provisioning ledger exists without a grant; operator reconciliation required"
+                        "provisioning ledger exists without a grant; "
+                        "operator reconciliation required"
                     )
                 if not grant[0]:
                     raise ValueError("idempotency key belongs to a disabled scope")

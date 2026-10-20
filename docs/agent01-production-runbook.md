@@ -78,7 +78,7 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 
 ## Current verified status
 
-As of 2026-10-20, [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) remains open/draft/unmerged. The current integration head is `7526bf63b85d5e0d4f5924cb6346e278e6411f3f`; [CI run #128](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39402854729) passed on that exact head: Ruff clean, 68 tests passed against ephemeral PostgreSQL 16 (1 warning), Docker build and cleanup passed. PR #17 provisioning recovery was merged into `agent-01/clean-main-integration`; no changes were merged into `main`.
+As of 2026-10-20, [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) remains open/draft/unmerged. The current integration head is `820cc2f4be325fc2a59040b130225c9bf49e05e3`; [CI run #129](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39403863709) passed on that exact head: Ruff clean, 68 tests passed against ephemeral PostgreSQL 16 (1 warning), Docker build and cleanup passed. PR #17 provisioning recovery was merged into `agent-01/clean-main-integration`; no changes were merged into `main`.
 
 Read-only Neon checks on 2026-10-20:
 - Production/default branch `br-dark-pond-azjzxzmd` contains only `ucos_research_runs` and `ucos_research_scope_grants`; both tables have zero rows. Provisioning audit/ledger tables are absent and the `max_results`, `claim_expires_at`, and `claim_generation` columns are absent.

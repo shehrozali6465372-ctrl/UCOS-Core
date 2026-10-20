@@ -20,30 +20,30 @@ def _payload() -> dict[str, str | int]:
 
 
 def test_api_rejects_whitespace_padded_bearer_token(monkeypatch):
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=_payload(),
-        headers={"Authorization": "Bearer  test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer  agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 401
 
 
 def test_api_rejects_tab_separated_bearer_scheme(monkeypatch):
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=_payload(),
-        headers={"Authorization": "Bearer\ttest-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer\tagent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 401
 
 
 def test_api_rejects_token_with_trailing_whitespace(monkeypatch):
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=_payload(),
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789 "},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789 "},
     )
     assert response.status_code == 401

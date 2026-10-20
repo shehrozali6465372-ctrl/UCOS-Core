@@ -124,8 +124,9 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
             "postgresql://unused", "operator-test", "initial-setup-1"
         )
     assert ids == ("tenant", "workspace", "brand")
-    assert len(fake.statements) == 2
+    assert len(fake.statements) == 3
     assert "SELECT actor, tenant_id, workspace_id, brand_id" in fake.statements[1][0]
+    assert "SELECT enabled FROM ucos_research_scope_grants" in fake.statements[2][0]
 
 
 def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> None:

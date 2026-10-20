@@ -246,3 +246,38 @@ async def test_save_failure_releases_only_current_claim() -> None:
         await ResearchService(source, analyzer, auth, repo).execute(request())
 
     repo.release.assert_awaited_once_with(request(), 23)
+
+
+def test_api_rejects_low_entropy_token_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "short")
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": "Bearer short"},
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "research authentication is not configured safely"
+
+
+def test_api_accepts_high_entropy_token_configuration_and_exact_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.execute.return_value = ResearchResponse(
+        request_id="req-1", correlation_id="corr-1", status="NO_RESULTS",
+        analysis="", evidence=[], persisted=True,
+    )
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).post(
+        "/v1/agents/01/research",
+        json=request().model_dump(),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200

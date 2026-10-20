@@ -185,3 +185,8 @@ This checkpoint records fresh read-only checks and the current isolated PR #20 b
 
 ### Production changes made in this checkpoint
 None. No production migration, scope/grant write, role creation, secret update, Render configuration change, deployment, or provider-backed live request occurred.
+
+### Backup recheck — 2026-10-21 (read-only)
+
+- Neon snapshot inventory currently returns `snap-falling-snow-azcy9onf`, named `ucos-core-pre-production-migration-2026-10-20`, for production branch `br-dark-pond-azjzxzmd`. Recorded expiry: 2026-11-03 00:00 UTC.
+- This establishes that a snapshot record exists; **a restore/rollback drill has not been performed or verified**. Before production migrations or deployment, recheck snapshot status/expiry, verify that it is restorable, and document the exact restore/rollback steps.

@@ -1,11 +1,11 @@
 # Agent 01 production protection runbook
 
-This runbook is an operator checklist, not authorization to mutate production. Keep PRs draft until review and required checks are complete. Never paste credentials, bearer tokens, database URLs, or provider keys into GitHub issues or chat.
+This runbook is an operator checklist, not authorization to mutate production. The owner selected a single-owner workflow; do not request a third-party reviewer by default. Automated review and CI are required engineering steps, but they do not constitute independent review. Keep PR #12 draft until production gates are complete. Never paste credentials, bearer tokens, database URLs, or provider keys into GitHub issues or chat.
 
 ## 0. Change-control gate
 
 - [ ] Obtain explicit approval from the production owner for the deployment window and migration.
-- [ ] Confirm PR #4 (audited scope provisioning) and PR #5 (idempotent replay / fencing) have been reviewed and approved.
+- [ ] Verify the canonical integration candidate [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) is the exact code intended for deployment; perform focused owner-led review and check CI on the exact head. Do not claim an independent review occurred.
 - [ ] Confirm all required CI checks pass on the exact commit to deploy.
 - [ ] Record the target commit, operator, maintenance window, rollback owner, and recovery procedure.
 - [ ] Verify a current database backup / restore point and that rollback steps have been tested or reviewed.
@@ -72,11 +72,13 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 
 ## 6. Repository protection
 
-- [ ] Have a repository administrator configure and verify default-branch protection / rulesets requiring pull-request review and successful CI.
+- [ ] Use an authorized GitHub admin view/API to configure and verify main branch rules consistent with the single-owner policy. Recommended minimums: required CI checks and restrictions on force pushes/direct writes; the owner decides whether a separate-review requirement matches project policy.
 - [ ] Confirm direct pushes and force pushes are restricted as policy requires.
-- [ ] The connected GitHub integration may not have administration permission to read or change protection settings; do not treat inability to inspect them as evidence that protection is enabled.
-- [ ] Keep PR #4 and PR #5 unmerged until the approvals and production gates above are satisfied.
+- [ ] Main branch protection/ruleset status is currently UNKNOWN: a previous attempt to read the endpoint through the connected integration returned 403. Do not infer protection is enabled or disabled from that error.
+- [ ] Keep PR #12 draft/open/unmerged until the exact production change plan is owner-approved and all production gates above are satisfied.
 
 ## Current verified status
 
-As of 2026-10-19, PR #5 CI passed on commit `864224641a7b27a217135642ed84df68d0ab2dfa`, but the production Render service was still on an older branch; production Neon lacked migrations 003/004; the scope grant and provisioning audit table were absent; and a real live smoke test had not been performed. Therefore Agent 01 is not yet production-ready. Re-verify every item above immediately before any deployment.
+As of 2026-10-20, [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) remains open/draft/unmerged. Its integration head `8868d07a6368d454712bb44a1eb273dc6a8917b9` passed [CI run #109](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39344562975): lint clean, 66 tests passed against ephemeral PostgreSQL 16 (1 warning), Docker build and cleanup passed. PR #13 credential transport hardening and PR #14 Node 24-compatible CI action upgrades were merged to the integration branch only, not `main`.
+
+Production is not certified: the Neon production/default branch still lacks the complete migration schema and no approved scope grant exists; Render still points at `agent-01/production-v1` and its health-check path is unset; an authenticated live persistence/replay verification has not been performed. Main branch protection status is UNKNOWN. No production migrations, grant provisioning, secret/configuration edits, or deployments have occurred. Re-verify all items immediately before any production change.

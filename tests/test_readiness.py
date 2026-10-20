@@ -88,7 +88,7 @@ def test_readiness_passes_configuration_gate_when_all_values_exist(monkeypatch):
         lambda: ProbeResult(True, True),
     )
     values = {
-        "UCOS_RESEARCH_API_TOKEN": "test-token",
+        "UCOS_RESEARCH_API_TOKEN": "agent01-test-token-0123456789-abcdef-0123456789",
         "UCOS_RESEARCH_SCOPE_TENANT_ID": "tenant",
         "UCOS_RESEARCH_SCOPE_WORKSPACE_ID": "workspace",
         "UCOS_RESEARCH_SCOPE_BRAND_ID": "brand",

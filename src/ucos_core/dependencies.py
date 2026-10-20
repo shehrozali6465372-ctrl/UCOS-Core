@@ -133,7 +133,10 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
 
     # Readiness is also a configuration safety gate: don't accept traffic when
     # authentication, the single authorized scope, or provider credentials are absent.
-    token_configured = bool(os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip())
+    token = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
+    # Match the API authentication gate so readiness never advertises a short
+    # configured token as safe for production traffic.
+    token_configured = len(token) >= 32
     components["research_auth"] = token_configured
     components["research_scope"] = scope_grant.configured and scope_grant.available
     components["research_schema"] = research_schema.configured and research_schema.available

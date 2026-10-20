@@ -74,7 +74,7 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 
 - [ ] Use an authorized GitHub admin view/API to configure and verify main branch rules consistent with the single-owner policy. Recommended minimums: required CI checks and restrictions on force pushes/direct writes; the owner decides whether a separate-review requirement matches project policy.
 - [ ] Confirm direct pushes and force pushes are restricted as policy requires.
-- [ ] Main branch protection/ruleset status is currently UNKNOWN: a previous attempt to read the endpoint through the connected integration returned 403. Do not infer protection is enabled or disabled from that error.
+- [ ] Latest GitHub branches API snapshot reports `protected=false` for `main` and integration branch; required CI checks and restrictions on direct/force pushes are not enabled in that snapshot. The dedicated branch-protection endpoint returned 403 to the connected integration, so verify details with an authorized owner/admin view before rollout.
 - [ ] Keep PR #12 draft/open/unmerged until the exact production change plan is owner-approved and all production gates above are satisfied.
 
 ## Current verified status
@@ -82,3 +82,10 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 As of 2026-10-20, [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) remains open/draft/unmerged. Its integration head `8868d07a6368d454712bb44a1eb273dc6a8917b9` passed [CI run #109](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39344562975): lint clean, 66 tests passed against ephemeral PostgreSQL 16 (1 warning), Docker build and cleanup passed. PR #13 credential transport hardening and PR #14 Node 24-compatible CI action upgrades were merged to the integration branch only, not `main`.
 
 Production is not certified: the Neon production/default branch still lacks the complete migration schema and no approved scope grant exists; Render still points at `agent-01/production-v1` and its health-check path is unset; an authenticated live persistence/replay verification has not been performed. Main branch protection status is UNKNOWN. No production migrations, grant provisioning, secret/configuration edits, or deployments have occurred. Re-verify all items immediately before any production change.
+
+
+## Exact-head provisioning recovery follow-up — 2026-10-20
+
+The provisioning retry recovery fix was validated at PR #16 head `90ace93ec9f19b232b3ef2b0d497f88f8b1ba5ce` by CI run #117: Ruff passed, 68 tests passed (1 warning) with ephemeral PostgreSQL 16, and Docker build passed. The change is being brought into the integration branch through a separate reconciliation branch/PR so that the complete Agent 01 stack can be revalidated together. Do not treat the source PR's CI as CI for the reconciled integration head until a new exact-head run passes.
+
+Read-only production verification continues to show only the two base tables `ucos_research_runs` and `ucos_research_scope_grants`, zero rows in each, no provisioning audit/ledger tables, and none of the three required claim/replay columns. Render still tracks `agent-01/production-v1` with auto-deploy enabled, empty health-check path, and public IP allowlist `0.0.0.0/0`. Production rollout remains blocked.

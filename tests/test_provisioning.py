@@ -259,11 +259,14 @@ def test_provision_scope_fails_closed_when_ledger_exists_without_grant() -> None
         def transaction(self):
             return self
         def execute(self, query, _params):
-            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
+            normalized = " ".join(query.split())
+            if "INSERT INTO ucos_scope_provisioning_requests" in normalized:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
+            if normalized.startswith("SELECT request.actor,"):
+                return FakeCursor(("operator-test", "tenant", "workspace", "brand", True))
+            if normalized.startswith("SELECT actor, tenant_id, workspace_id, brand_id"):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
-            if "SELECT enabled FROM ucos_research_scope_grants" in " ".join(query.split()):
+            if normalized.startswith("SELECT enabled FROM ucos_research_scope_grants"):
                 return FakeCursor(None)
             raise AssertionError("unexpected SQL")
 
@@ -291,11 +294,14 @@ def test_provision_scope_refuses_reenabling_disabled_grant() -> None:
         def transaction(self):
             return self
         def execute(self, query, _params):
-            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
+            normalized = " ".join(query.split())
+            if "INSERT INTO ucos_scope_provisioning_requests" in normalized:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
+            if normalized.startswith("SELECT request.actor,"):
+                return FakeCursor(("operator-test", "tenant", "workspace", "brand", True))
+            if normalized.startswith("SELECT actor, tenant_id, workspace_id, brand_id"):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
-            if "SELECT enabled FROM ucos_research_scope_grants" in " ".join(query.split()):
+            if normalized.startswith("SELECT enabled FROM ucos_research_scope_grants"):
                 return FakeCursor((False,))
             raise AssertionError("unexpected SQL")
 

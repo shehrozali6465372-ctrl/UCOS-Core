@@ -83,11 +83,11 @@ def test_api_rejects_missing_token_configuration(monkeypatch: pytest.MonkeyPatch
 
 
 def test_api_rejects_invalid_bearer_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer intest-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer inagent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 401
 
@@ -95,14 +95,14 @@ def test_api_rejects_invalid_bearer_token(monkeypatch: pytest.MonkeyPatch) -> No
 def test_api_fails_closed_when_token_scope_is_unconfigured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     monkeypatch.delenv("UCOS_RESEARCH_SCOPE_TENANT_ID", raising=False)
     monkeypatch.delenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", raising=False)
     monkeypatch.delenv("UCOS_RESEARCH_SCOPE_BRAND_ID", raising=False)
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 503
     assert response.json()["detail"] == "research token scope is not configured"
@@ -111,7 +111,7 @@ def test_api_fails_closed_when_token_scope_is_unconfigured(
 def test_api_rejects_scope_mismatch_before_research(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-allowed")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
@@ -120,7 +120,7 @@ def test_api_rejects_scope_mismatch_before_research(
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 403
     service.execute.assert_not_awaited()
@@ -129,7 +129,7 @@ def test_api_rejects_scope_mismatch_before_research(
 def test_api_accepts_only_configured_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
@@ -142,7 +142,7 @@ def test_api_accepts_only_configured_scope(
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 200
     service.execute.assert_awaited_once()
@@ -151,7 +151,7 @@ def test_api_accepts_only_configured_scope(
 def test_api_returns_conflict_when_request_is_already_in_progress(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
@@ -161,7 +161,7 @@ def test_api_returns_conflict_when_request_is_already_in_progress(
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 409
     assert response.headers["retry-after"] == "5"
@@ -170,7 +170,7 @@ def test_api_returns_conflict_when_request_is_already_in_progress(
 def test_api_returns_conflict_for_request_id_reuse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
@@ -180,7 +180,7 @@ def test_api_returns_conflict_for_request_id_reuse(
     response = TestClient(app).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 409
 
@@ -188,7 +188,7 @@ def test_api_returns_conflict_for_request_id_reuse(
 def test_api_rejects_non_ascii_bearer_token_without_server_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     response = TestClient(app, raise_server_exceptions=False).post(
         "/v1/agents/01/research",
         json=request().model_dump(),
@@ -200,7 +200,7 @@ def test_api_rejects_non_ascii_bearer_token_without_server_error(
 def test_api_unicode_scope_mismatch_returns_forbidden(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-research-token-0123456789-abcdef-0123456789")
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "agent01-test-token-0123456789-abcdef-0123456789")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-allowed")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
@@ -209,7 +209,7 @@ def test_api_unicode_scope_mismatch_returns_forbidden(
     response = TestClient(app, raise_server_exceptions=False).post(
         "/v1/agents/01/research",
         json=payload,
-        headers={"Authorization": "Bearer test-research-token-0123456789-abcdef-0123456789"},
+        headers={"Authorization": "Bearer agent01-test-token-0123456789-abcdef-0123456789"},
     )
     assert response.status_code == 403
 

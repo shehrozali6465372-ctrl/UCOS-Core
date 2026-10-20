@@ -125,3 +125,9 @@ This section supersedes the older point-in-time snapshot above where it differs.
 
 - Neon snapshot inventory returned no snapshots, and the production/default branch snapshot schedule is empty. A usable pre-migration restore point is **not verified**; do not apply schema migrations until a backup/restore point is explicitly created and its recovery path reviewed.
 - Production Neon lists only the `ucos_core_owner` PostgreSQL role. No dedicated migration/runtime role was found. The table grants inspected show the owner role has broad privileges; this does not prove which role Render currently uses because Render secret values are intentionally not read. Create and verify least-privilege migration and runtime roles through an approved change before rollout.
+
+
+### Pre-migration snapshot created — 2026-10-20 12:42 UTC
+
+- Manual Neon snapshot `snap-falling-snow-azcy9onf` (`ucos-core-pre-production-migration-2026-10-20`) was created from production/default branch `br-dark-pond-azjzxzmd`; it expires at `2026-11-03T00:00:00Z`.
+- Snapshot existence is verified. A restore drill has **not** been performed; do not mark the restore/rollback checklist complete until recovery instructions and restore behaviour have been reviewed.

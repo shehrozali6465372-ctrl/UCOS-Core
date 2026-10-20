@@ -149,7 +149,7 @@ def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> Non
         def execute(self, query, _params):
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            return FakeCursor(("different-operator", "tenant", "workspace", "brand", True))
+            return FakeCursor(("different-operator", "tenant", "workspace", "brand"))
 
     with patch.object(provisioning.psycopg, "connect", return_value=FakeConnection()):
         try:

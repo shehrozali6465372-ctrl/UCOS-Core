@@ -13,19 +13,37 @@ jobs:
   stage0-safety:
     name: Stage 0 safety and contract tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ucos
+          POSTGRES_PASSWORD: ucos-test-only
+          POSTGRES_DB: ucos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ucos -d ucos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
       - name: Install package and test tools
         run: python -m pip install -e '.[dev]'
       - name: Lint
-        run: ruff check src tests
-      - name: Run P0 safety tests
+        run: ruff check src tests scripts
+      - name: Run P0 safety and PostgreSQL integration tests
+        env:
+          TEST_DATABASE_URL: postgresql://ucos:ucos-test-only@localhost:5432/ucos_test
         run: pytest
       - name: Build container image
         run: docker build -t ucos-core:ci .
+      - name: Verify runtime container is non-root
+        run: docker run --rm --entrypoint python ucos-core:ci -c 'import os; assert os.getuid() != 0'

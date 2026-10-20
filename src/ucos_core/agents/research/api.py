@@ -31,8 +31,8 @@ def configure_research_service(service: ResearchService) -> None:
 
 def _authenticate(authorization: str | None) -> None:
     expected = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
-    # Credentials must be provisioned as high-entropy secrets; reject unsafe
-    # low-entropy configuration before accepting any caller request.
+    # Enforce a minimum configured token length. Length alone does not prove
+    # entropy; operators must generate the value with a cryptographic RNG.
     if len(expected) < 32:
         raise HTTPException(
             status_code=503,

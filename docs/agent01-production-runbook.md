@@ -72,10 +72,9 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 
 ## 6. Repository protection
 
-- [ ] Use an authorized GitHub admin view/API to configure and verify main branch rules consistent with the single-owner policy. Recommended minimums: required CI checks and restrictions on force pushes/direct writes; the owner decides whether a separate-review requirement matches project policy.
-- [ ] Confirm direct pushes and force pushes are restricted as policy requires.
-- [ ] Latest GitHub branches API snapshot reports `protected=false` for `main` and integration branch; required CI checks and restrictions on direct/force pushes are not enabled in that snapshot. The dedicated branch-protection endpoint returned 403 to the connected integration, so verify details with an authorized owner/admin view before rollout.
-- [ ] Keep PR #12 draft/open/unmerged until the exact production change plan is owner-approved and all production gates above are satisfied.
+- [ ] Configure and verify GitHub branch rules for `main` using an authorized owner/admin interface before any production rollout. The GitHub branches API currently reports `protected=false` for both `main` and `agent-01/clean-main-integration`; required status checks and force-push/direct-write restrictions are therefore not shown as enabled in that snapshot.
+- [ ] The dedicated branch-protection endpoint returns 403 through the connected integration, so exact ruleset settings cannot be inspected there. Re-check them with owner/admin access and do not infer that protections are enabled.
+- [ ] Keep PR #12 draft/open/unmerged until the exact code and production change plan are approved, required CI is green, and all production gates above are complete.
 
 ## Current verified status
 

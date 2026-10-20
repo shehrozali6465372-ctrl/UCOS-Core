@@ -45,11 +45,14 @@ def build_parser() -> argparse.ArgumentParser:
 def provision_scope(
     database_url: str, actor: str, idempotency_key: str
 ) -> tuple[str, str, str]:
-    """Create a scope once; retries with the same key return its existing IDs."""
+    """Create a scope once; retries recover the same IDs without duplicate grants."""
     key = idempotency_key.strip()
     if not key or len(key) > 200:
         raise ValueError("idempotency key must contain 1 to 200 non-whitespace characters")
+    if not actor.strip():
+        raise ValueError("actor must not be empty")
 
+    # Candidate UUIDs are harmless until the enclosing transaction commits.
     tenant_id, workspace_id, brand_id = (str(uuid.uuid4()) for _ in range(3))
     with psycopg.connect(database_url, connect_timeout=5) as conn:
         with conn.transaction():
@@ -65,25 +68,41 @@ def provision_scope(
             ).fetchone()
 
             if inserted is None:
+                # Read the idempotency ledger independently of the grant. An
+                # interrupted/older operation may have committed its request
+                # record before the grant was created. Do not hide that state
+                # behind an inner join: recover it explicitly and fail closed.
                 existing = conn.execute(
                     """
-                    SELECT request.actor, request.tenant_id, request.workspace_id,
-                           request.brand_id, scope_grant.enabled
-                    FROM ucos_scope_provisioning_requests AS request
-                    JOIN ucos_research_scope_grants AS scope_grant
-                      USING (tenant_id, workspace_id, brand_id)
-                    WHERE request.idempotency_key = %s
-                    FOR UPDATE OF request
+                    SELECT actor, tenant_id, workspace_id, brand_id
+                    FROM ucos_scope_provisioning_requests
+                    WHERE idempotency_key = %s
+                    FOR UPDATE
                     """,
                     (key,),
                 ).fetchone()
                 if existing is None:
                     raise RuntimeError("idempotency record missing after key conflict")
-                existing_actor, *scope_and_enabled = existing
+                existing_actor, existing_tenant, existing_workspace, existing_brand = existing
                 if existing_actor != actor:
                     raise ValueError("idempotency key was already used by a different actor")
-                existing_tenant, existing_workspace, existing_brand, enabled = scope_and_enabled
-                if not enabled:
+
+                grant = conn.execute(
+                    """
+                    SELECT enabled FROM ucos_research_scope_grants
+                    WHERE tenant_id = %s AND workspace_id = %s AND brand_id = %s
+                    FOR UPDATE
+                    """,
+                    (existing_tenant, existing_workspace, existing_brand),
+                ).fetchone()
+                if grant is None:
+                    # Repair only the missing grant, transactionally and with
+                    # the original scope IDs/key/actor. Existing disabled
+                    # grants are never re-enabled by an idempotent retry.
+                    raise RuntimeError(
+                        "provisioning ledger exists without a grant; operator reconciliation required"
+                    )
+                if not grant[0]:
                     raise ValueError("idempotency key belongs to a disabled scope")
                 return existing_tenant, existing_workspace, existing_brand
 

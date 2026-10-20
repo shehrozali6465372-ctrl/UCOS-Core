@@ -261,7 +261,7 @@ def test_api_rejects_low_entropy_token_configuration(
     assert response.json()["detail"] == "research authentication is not configured safely"
 
 
-def test_api_accepts_high_entropy_token_configuration_and_exact_scope(
+def test_api_accepts_sufficient_length_token_and_exact_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     token = "research-test-secret-value-with-more-than-32-characters"

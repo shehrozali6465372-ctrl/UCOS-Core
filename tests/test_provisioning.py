@@ -129,8 +129,12 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
         )
     assert ids == ("tenant", "workspace", "brand")
     assert len(fake.statements) == 3
-    assert "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(fake.statements[1][0].split())
-    assert "SELECT enabled FROM ucos_research_scope_grants" in " ".join(fake.statements[2][0].split())
+    assert "SELECT actor, tenant_id, workspace_id, brand_id" in (
+        " ".join(fake.statements[1][0].split())
+    )
+    assert "SELECT enabled FROM ucos_research_scope_grants" in (
+        " ".join(fake.statements[2][0].split())
+    )
 
 
 def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> None:

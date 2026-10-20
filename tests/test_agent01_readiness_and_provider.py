@@ -33,7 +33,10 @@ def test_readiness_requires_provider_credentials_and_granted_scope(monkeypatch):
 
 
 def test_readiness_fails_when_scope_grant_is_missing(monkeypatch):
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "test-token")
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "agent01-test-token-0123456789-abcdef-0123456789",
+    )
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand")

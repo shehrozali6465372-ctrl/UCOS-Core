@@ -119,3 +119,9 @@ This section supersedes the older point-in-time snapshot above where it differs.
 4. After migration and configuration are approved, set the correct Render branch and `/health/ready`; restrict ingress to the intended access model.
 5. Run the approved live persistence/idempotent-replay smoke test using an approved non-sensitive query, and separately verify with a read-only DB credential.
 6. Enable and verify owner/admin branch protection for `main`; branch metadata currently reports `protected=false`.
+
+
+### Backup and database-role recheck — 2026-10-20
+
+- Neon snapshot inventory returned no snapshots, and the production/default branch snapshot schedule is empty. A usable pre-migration restore point is **not verified**; do not apply schema migrations until a backup/restore point is explicitly created and its recovery path reviewed.
+- Production Neon lists only the `ucos_core_owner` PostgreSQL role. No dedicated migration/runtime role was found. The table grants inspected show the owner role has broad privileges; this does not prove which role Render currently uses because Render secret values are intentionally not read. Create and verify least-privilege migration and runtime roles through an approved change before rollout.

@@ -1,5 +1,26 @@
-.git
-.venv
-__pycache__
-.pytest_cache
-.ruff_cache
+# Keep credentials and local environment files out of the Docker build context.
+.env
+.env.*
+*.env
+*.pem
+*.key
+secrets/
+
+# Local development and generated files.
+.git/
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Only runtime code is copied into the image.
+tests/
+docs/
+migrations/
+scripts/
+.github/

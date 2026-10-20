@@ -137,3 +137,11 @@ This section supersedes the older point-in-time snapshot above where it differs.
 
 - Attempted to configure daily snapshots with 14-day retention on the production/default Neon branch. Neon rejected schedule creation because automated backup scheduling is not enabled for this project. The schedule remains unconfigured.
 - The manual pre-migration snapshot above exists, but automatic backup coverage is still a blocker. Owner must enable an available backup policy in Neon or establish an approved recurring manual snapshot process; verify a restore drill before production migration.
+
+
+### Least-privilege permission dry-run — 2026-10-20
+
+- The full migrations 001–005 plus a candidate grant set were exercised on a separate temporary Neon branch, then that branch was deleted without applying changes to production.
+- Candidate `ucos_core_runtime` role: `SELECT/INSERT/UPDATE` on `ucos_research_runs`, `SELECT` on `ucos_research_scope_grants`, and no `DELETE` on research runs or `INSERT` on scope grants.
+- Candidate `ucos_core_provisioner` role: `SELECT/INSERT/UPDATE` on scope grants, `SELECT/INSERT` on provisioning requests, and `INSERT` on provisioning audit. Required schema/tables and these privilege checks passed on the temporary branch.
+- These are tested candidate NOLOGIN group roles only. Neither role nor any production privilege was created by this dry run; owner approval, actual login credentials/secret delivery, and a production grant verification remain outstanding.

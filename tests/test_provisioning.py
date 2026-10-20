@@ -116,9 +116,9 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
             self.statements.append((query, params))
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
-            if "SELECT enabled FROM ucos_research_scope_grants" in query:
+            if "SELECT enabled FROM ucos_research_scope_grants" in " ".join(query.split()):
                 return FakeCursor((True,))
             raise AssertionError("unexpected SQL")
 
@@ -154,7 +154,7 @@ def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> Non
         def execute(self, query, _params):
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("different-operator", "tenant", "workspace", "brand"))
             raise AssertionError("different actor must be rejected before grant lookup")
 
@@ -251,9 +251,9 @@ def test_provision_scope_fails_closed_when_ledger_exists_without_grant() -> None
         def execute(self, query, _params):
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
-            if "SELECT enabled FROM ucos_research_scope_grants" in query:
+            if "SELECT enabled FROM ucos_research_scope_grants" in " ".join(query.split()):
                 return FakeCursor(None)
             raise AssertionError("unexpected SQL")
 
@@ -283,9 +283,9 @@ def test_provision_scope_refuses_reenabling_disabled_grant() -> None:
         def execute(self, query, _params):
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
-            if "SELECT enabled FROM ucos_research_scope_grants" in query:
+            if "SELECT enabled FROM ucos_research_scope_grants" in " ".join(query.split()):
                 return FakeCursor((False,))
             raise AssertionError("unexpected SQL")
 

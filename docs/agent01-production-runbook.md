@@ -97,3 +97,25 @@ PR #17 (`fix(agent-01): reconcile provisioning recovery into integration`) was m
 A separate draft test PR #18 is still open against the integration branch; its repeated candidate runs failed while adjusting fixtures, and it is not required as a merge gate now that the same recovery implementation and core regression cases are present in the merged PR #17. Reconcile/close this redundant PR after its patch has been checked against the merged integration tests; do not merge it blindly.
 
 Production verification above remains blocking. CI green is necessary but does not certify the real database, real provider calls, runtime configuration, or ingress/readiness controls.
+
+
+## Latest production-readiness checkpoint — 2026-10-20 12:40 UTC
+
+This section supersedes the older point-in-time snapshot above where it differs.
+
+- Runtime hardening PR #19 was merged into `agent-01/clean-main-integration` only at `6ce224e06c9464637cf1080f6316bf9059935b16`. It adds non-root UID/GID 10001, excludes environment/key/secret paths from the Docker context, verifies non-root runtime in CI, and adds a manual opt-in live verifier workflow. PR #19's exact pre-merge head `3c5b7fcd5756c151070d130e93ebd7efd67baf78` passed CI run #131. Main was not changed.
+- After that merge, CI run `39423955481` for the integration head was observed in progress. Do not claim post-merge validation passed until it completes on the exact deployed SHA.
+- A prepared migration using the SQL represented by migrations 001–005 was exercised on a temporary Neon branch. It produced all four expected tables and `ucos_research_runs.max_results`, `claim_expires_at`, and `claim_generation`; the status constraint allows `IN_PROGRESS`, `SUCCEEDED`, and `NO_RESULTS`. No research rows or scope grants were created during this check. The temporary branch was deleted afterward. This is a disposable schema test, not a production migration.
+- Current read-only production/default Neon verification still shows only `ucos_research_runs` and `ucos_research_scope_grants`; the three claim/replay columns and both provisioning audit/ledger tables remain absent. No approved scope grant exists.
+- Current Render service readback is still `agent-01/production-v1`, auto-deploy enabled, health-check path blank, ingress `0.0.0.0/0`, free plan. Do not point it at the integration branch or deploy the new image until the production schema, secrets, scope and rollback gates are complete.
+- PR #12 is still open/draft/unmerged and its head now tracks integration commit `6ce224e06c9464637cf1080f6316bf9059935b16`. Main remains at `d770512de3bf7523ff04885a671f82dfa93d952e` as last verified.
+- No production migration was applied, no scope was provisioned, no secrets or Render settings were changed, no deployment occurred, and no real provider-backed smoke test was run.
+
+### Immediate blockers
+
+1. Obtain explicit operator approval for the production migration/deployment window, confirm the exact production project/default branch and approved migration role, and verify a current restore point plus rollback plan. The migration connector requires an explicit go-ahead before applying the prepared migration to production.
+2. Identify and approve the exact tenant/workspace/brand scope and actor for initial provisioning; do not invent or silently create a production scope.
+3. Set and verify Render's production secrets through its secret manager; never print or paste their values.
+4. After migration and configuration are approved, set the correct Render branch and `/health/ready`; restrict ingress to the intended access model.
+5. Run the approved live persistence/idempotent-replay smoke test using an approved non-sensitive query, and separately verify with a read-only DB credential.
+6. Enable and verify owner/admin branch protection for `main`; branch metadata currently reports `protected=false`.

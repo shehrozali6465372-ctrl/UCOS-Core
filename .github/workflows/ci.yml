@@ -45,3 +45,5 @@ jobs:
         run: pytest
       - name: Build container image
         run: docker build -t ucos-core:ci .
+      - name: Verify runtime container is non-root
+        run: docker run --rm --entrypoint python ucos-core:ci -c 'import os; assert os.getuid() != 0'

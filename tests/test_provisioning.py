@@ -116,7 +116,7 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
             self.statements.append((query, params))
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            return FakeCursor(("operator-test", "tenant", "workspace", "brand", True))
+            return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
 
     fake = FakeConnection()
     with patch.object(provisioning.psycopg, "connect", return_value=fake):
@@ -125,7 +125,7 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
         )
     assert ids == ("tenant", "workspace", "brand")
     assert len(fake.statements) == 2
-    assert "SELECT request.actor" in fake.statements[1][0]
+    assert "SELECT actor, tenant_id, workspace_id, brand_id" in fake.statements[1][0]
 
 
 def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> None:

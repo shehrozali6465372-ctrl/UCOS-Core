@@ -145,3 +145,14 @@ This section supersedes the older point-in-time snapshot above where it differs.
 - Candidate `ucos_core_runtime` role: `SELECT/INSERT/UPDATE` on `ucos_research_runs`, `SELECT` on `ucos_research_scope_grants`, and no `DELETE` on research runs or `INSERT` on scope grants.
 - Candidate `ucos_core_provisioner` role: `SELECT/INSERT/UPDATE` on scope grants, `SELECT/INSERT` on provisioning requests, and `INSERT` on provisioning audit. Required schema/tables and these privilege checks passed on the temporary branch.
 - These are tested candidate NOLOGIN group roles only. Neither role nor any production privilege was created by this dry run; owner approval, actual login credentials/secret delivery, and a production grant verification remain outstanding.
+
+
+### Production schema migration applied and verified — 2026-10-20 13:00 UTC
+
+- After operator approval, applied the exact SQL corresponding to migrations 001–005 to Neon production/default branch `br-dark-pond-azjzxzmd` in project `billowing-meadow-65083232`. The exact same SQL had passed a temporary-branch dry run immediately beforehand.
+- Post-apply read-only verification confirms all four expected tables exist: `ucos_research_runs`, `ucos_research_scope_grants`, `ucos_scope_provisioning_audit`, and `ucos_scope_provisioning_requests`.
+- `ucos_research_runs` has `max_results` (nullable, constrained 1–10), `claim_expires_at`, and `claim_generation` (NOT NULL DEFAULT 0); status constraint permits `IN_PROGRESS`, `SUCCEEDED`, `NO_RESULTS`.
+- Row counts after migration: research runs 0; scope grants 0; provisioning audit 0; provisioning requests 0. No scope has been provisioned and no research data was inserted.
+- Pre-migration manual snapshot `snap-falling-snow-azcy9onf` was confirmed present immediately after migration. Restore drill remains unverified; automated snapshot scheduling remains unavailable for this Neon project.
+- This was a schema-only migration. No production login roles or grants were changed, no secrets or Render settings were changed, no deployment occurred, and no live provider-backed smoke test was run.
+- Next gates remain: configure/verify least-privilege runtime and provisioning credentials through approved secret management; approve and provision the exact scope with an audit record; configure Render branch/health-check/ingress; verify health endpoints and run authenticated persistence/replay smoke; configure/verify GitHub branch protection. Do not declare full production readiness until those checks pass.

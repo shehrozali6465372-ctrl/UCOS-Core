@@ -34,7 +34,10 @@ def _authenticate(authorization: str | None) -> None:
     # Credentials must be provisioned as high-entropy secrets; reject unsafe
     # low-entropy configuration before accepting any caller request.
     if len(expected) < 32:
-        raise HTTPException(status_code=503, detail="research authentication is not configured safely")
+        raise HTTPException(
+            status_code=503,
+            detail="research authentication is not configured safely",
+        )
     scheme, separator, token = (authorization or "").partition(" ")
     # HTTP authentication uses one scheme/token separator; reject empty or
     # whitespace-padded credentials instead of accepting accidental formatting.

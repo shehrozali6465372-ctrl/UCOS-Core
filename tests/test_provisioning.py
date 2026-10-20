@@ -74,7 +74,7 @@ def test_provision_scope_creates_grant_and_audit_atomically() -> None:
 
         def execute(self, query, params):
             self.statements.append((query, params))
-            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
                 return FakeCursor(params[2:5])
             return FakeCursor(None)
 
@@ -114,7 +114,7 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
 
         def execute(self, query, params):
             self.statements.append((query, params))
-            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
                 return FakeCursor(None)
             if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
@@ -129,8 +129,8 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
         )
     assert ids == ("tenant", "workspace", "brand")
     assert len(fake.statements) == 3
-    assert "SELECT actor, tenant_id, workspace_id, brand_id" in fake.statements[1][0]
-    assert "SELECT enabled FROM ucos_research_scope_grants" in fake.statements[2][0]
+    assert "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(fake.statements[1][0].split())
+    assert "SELECT enabled FROM ucos_research_scope_grants" in " ".join(fake.statements[2][0].split())
 
 
 def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> None:
@@ -152,7 +152,7 @@ def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> Non
             return self
 
         def execute(self, query, _params):
-            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
                 return FakeCursor(None)
             if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("different-operator", "tenant", "workspace", "brand"))
@@ -249,7 +249,7 @@ def test_provision_scope_fails_closed_when_ledger_exists_without_grant() -> None
         def transaction(self):
             return self
         def execute(self, query, _params):
-            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
                 return FakeCursor(None)
             if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
@@ -281,7 +281,7 @@ def test_provision_scope_refuses_reenabling_disabled_grant() -> None:
         def transaction(self):
             return self
         def execute(self, query, _params):
-            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
                 return FakeCursor(None)
             if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))

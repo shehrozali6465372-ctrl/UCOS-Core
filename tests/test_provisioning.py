@@ -114,11 +114,14 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
 
         def execute(self, query, params):
             self.statements.append((query, params))
-            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
+            normalized = " ".join(query.split())
+            if "INSERT INTO ucos_scope_provisioning_requests" in normalized:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
+            if normalized.startswith("SELECT request.actor,"):
+                return FakeCursor(("operator-test", "tenant", "workspace", "brand", True))
+            if normalized.startswith("SELECT actor, tenant_id, workspace_id, brand_id"):
                 return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
-            if "SELECT enabled FROM ucos_research_scope_grants" in " ".join(query.split()):
+            if normalized.startswith("SELECT enabled FROM ucos_research_scope_grants"):
                 return FakeCursor((True,))
             raise AssertionError("unexpected SQL")
 
@@ -156,9 +159,12 @@ def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> Non
             return self
 
         def execute(self, query, _params):
-            if "INSERT INTO ucos_scope_provisioning_requests" in " ".join(query.split()):
+            normalized = " ".join(query.split())
+            if "INSERT INTO ucos_scope_provisioning_requests" in normalized:
                 return FakeCursor(None)
-            if "SELECT actor, tenant_id, workspace_id, brand_id" in " ".join(query.split()):
+            if normalized.startswith("SELECT request.actor,"):
+                return FakeCursor(("different-operator", "tenant", "workspace", "brand", True))
+            if normalized.startswith("SELECT actor, tenant_id, workspace_id, brand_id"):
                 return FakeCursor(("different-operator", "tenant", "workspace", "brand"))
             raise AssertionError("different actor must be rejected before grant lookup")
 

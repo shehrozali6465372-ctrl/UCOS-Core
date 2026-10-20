@@ -82,3 +82,10 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 As of 2026-10-20, [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) remains open/draft/unmerged. Its integration head `8868d07a6368d454712bb44a1eb273dc6a8917b9` passed [CI run #109](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39344562975): lint clean, 66 tests passed against ephemeral PostgreSQL 16 (1 warning), Docker build and cleanup passed. PR #13 credential transport hardening and PR #14 Node 24-compatible CI action upgrades were merged to the integration branch only, not `main`.
 
 Production is not certified: the Neon production/default branch still lacks the complete migration schema and no approved scope grant exists; Render still points at `agent-01/production-v1` and its health-check path is unset; an authenticated live persistence/replay verification has not been performed. Main branch protection status is UNKNOWN. No production migrations, grant provisioning, secret/configuration edits, or deployments have occurred. Re-verify all items immediately before any production change.
+
+
+## Provisioning idempotency recovery note — 2026-10-20
+
+A focused code review identified that the retry path originally used an inner join between the provisioning idempotency ledger and the scope-grant table. If a ledger record exists without its grant row, the join hides the record and returns an unhelpful “record missing” failure. The recovery fix now reads the ledger first and fails closed with an explicit operator-reconciliation error if the grant is absent; it never silently recreates or enables a grant on retry. A retry against a disabled grant remains rejected. See draft PR #16: https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/16.
+
+PR #16 is not merged and its exact-head CI is not yet available. Treat this as an unvalidated draft fix until CI passes and the change is reconciled with the canonical Agent 01 stack.

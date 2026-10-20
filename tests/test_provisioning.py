@@ -116,7 +116,11 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
             self.statements.append((query, params))
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            return FakeCursor(("operator-test", "tenant", "workspace", "brand", True))
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+                return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
+            if "SELECT enabled FROM ucos_research_scope_grants" in query:
+                return FakeCursor((True,))
+            raise AssertionError("unexpected SQL")
 
     fake = FakeConnection()
     with patch.object(provisioning.psycopg, "connect", return_value=fake):
@@ -124,8 +128,9 @@ def test_provision_scope_retry_returns_same_scope_without_duplicate_writes() -> 
             "postgresql://unused", "operator-test", "initial-setup-1"
         )
     assert ids == ("tenant", "workspace", "brand")
-    assert len(fake.statements) == 2
-    assert "SELECT request.actor" in fake.statements[1][0]
+    assert len(fake.statements) == 3
+    assert "SELECT actor, tenant_id, workspace_id, brand_id" in fake.statements[1][0]
+    assert "SELECT enabled FROM ucos_research_scope_grants" in fake.statements[2][0]
 
 
 def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> None:
@@ -149,7 +154,9 @@ def test_provision_scope_rejects_idempotency_key_owned_by_another_actor() -> Non
         def execute(self, query, _params):
             if "INSERT INTO ucos_scope_provisioning_requests" in query:
                 return FakeCursor(None)
-            return FakeCursor(("different-operator", "tenant", "workspace", "brand", True))
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+                return FakeCursor(("different-operator", "tenant", "workspace", "brand"))
+            raise AssertionError("different actor must be rejected before grant lookup")
 
     with patch.object(provisioning.psycopg, "connect", return_value=FakeConnection()):
         try:
@@ -225,3 +232,67 @@ def test_disable_scope_refuses_missing_or_already_disabled_grant() -> None:
             assert "does not exist or is already disabled" in str(exc)
         else:
             raise AssertionError("missing grant must not be reported as disabled")
+
+
+def test_provision_scope_fails_closed_when_ledger_exists_without_grant() -> None:
+    class FakeCursor:
+        def __init__(self, value):
+            self.value = value
+        def fetchone(self):
+            return self.value
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def transaction(self):
+            return self
+        def execute(self, query, _params):
+            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+                return FakeCursor(None)
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+                return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
+            if "SELECT enabled FROM ucos_research_scope_grants" in query:
+                return FakeCursor(None)
+            raise AssertionError("unexpected SQL")
+
+    with patch.object(provisioning.psycopg, "connect", return_value=FakeConnection()):
+        try:
+            provisioning.provision_scope("postgresql://unused", "operator-test", "orphaned-key")
+        except RuntimeError as exc:
+            assert "operator reconciliation required" in str(exc)
+        else:
+            raise AssertionError("orphaned ledger must fail closed")
+
+
+def test_provision_scope_refuses_reenabling_disabled_grant() -> None:
+    class FakeCursor:
+        def __init__(self, value):
+            self.value = value
+        def fetchone(self):
+            return self.value
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def transaction(self):
+            return self
+        def execute(self, query, _params):
+            if "INSERT INTO ucos_scope_provisioning_requests" in query:
+                return FakeCursor(None)
+            if "SELECT actor, tenant_id, workspace_id, brand_id" in query:
+                return FakeCursor(("operator-test", "tenant", "workspace", "brand"))
+            if "SELECT enabled FROM ucos_research_scope_grants" in query:
+                return FakeCursor((False,))
+            raise AssertionError("unexpected SQL")
+
+    with patch.object(provisioning.psycopg, "connect", return_value=FakeConnection()):
+        try:
+            provisioning.provision_scope("postgresql://unused", "operator-test", "revoked-key")
+        except ValueError as exc:
+            assert "disabled scope" in str(exc)
+        else:
+            raise AssertionError("retry must not reenable a disabled scope")

@@ -2,6 +2,7 @@
 
 import hmac
 import os
+import secrets
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -30,8 +31,10 @@ def configure_research_service(service: ResearchService) -> None:
 
 def _authenticate(authorization: str | None) -> None:
     expected = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
-    if not expected:
-        raise HTTPException(status_code=503, detail="research authentication is not configured")
+    # Credentials must be provisioned as high-entropy secrets; reject unsafe
+    # low-entropy configuration before accepting any caller request.
+    if len(expected) < 32:
+        raise HTTPException(status_code=503, detail="research authentication is not configured safely")
     scheme, separator, token = (authorization or "").partition(" ")
     # HTTP authentication uses one scheme/token separator; reject empty or
     # whitespace-padded credentials instead of accepting accidental formatting.
@@ -40,7 +43,7 @@ def _authenticate(authorization: str | None) -> None:
         or scheme.casefold() != "bearer"
         or not token
         or token != token.strip()
-        or not _constant_time_equal(token, expected)
+        or not secrets.compare_digest(token.encode("utf-8"), expected.encode("utf-8"))
     ):
         raise HTTPException(status_code=401, detail="invalid bearer token")
 

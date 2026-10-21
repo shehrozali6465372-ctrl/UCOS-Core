@@ -27,6 +27,12 @@ This runbook is an operator checklist, not authorization to mutate production. T
 - [ ] Verify `ucos_research_scope_grants`, `ucos_scope_provisioning_audit`, and `ucos_scope_provisioning_requests` exist.
 - [ ] Do not create a scope until the production owner approves the exact tenant/workspace/brand ownership and actor identity.
 
+## 3. Single-owner project scope (not customer tenancy)
+
+UCOS is operated as one private project for its owner. Do not implement customer onboarding, tenant administration, or multi-customer SaaS behavior as a release requirement unless the owner changes scope. The current database/API still use tenant/workspace/brand identifiers as an internal authorization tuple; these identifiers do not imply that UCOS serves multiple customers. Do not remove or rename those fields ad hoc: they are part of the current request contract, grant checks, idempotency key validation, and persisted schema.
+
+For initial setup, the owner does not need to invent or provide UUIDs. After the owner approves the provisioning action and the operator identity is available in the approved environment, the provisioning command generates the internal tuple and writes an audit event. Record the generated tuple only in the approved deployment record and configure it directly in the secret manager. Never expose secrets. A future schema simplification to a single project identifier should be a separate reviewed migration with compatibility tests and rollback notes; it is not required to treat this as a single-owner deployment today.
+
 ## 3. Scope provisioning
 
 Run the operator command from an authorized environment only after the preceding approval and migration checks. Supply `UCOS_PROVISIONING_DATABASE_URL` and `UCOS_PROVISIONING_ACTOR` via the approved secret mechanism. Then run:

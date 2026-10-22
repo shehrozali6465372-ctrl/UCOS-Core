@@ -26,6 +26,10 @@ def test_readiness_requires_provider_credentials_and_granted_scope(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is True
@@ -47,6 +51,10 @@ def test_readiness_fails_when_scope_grant_is_missing(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, False)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False
@@ -290,6 +298,10 @@ def test_readiness_fails_closed_for_unsafe_analysis_endpoint(
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False
@@ -314,6 +326,10 @@ def test_readiness_fails_for_loopback_http_in_production(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False
@@ -337,6 +353,10 @@ def test_readiness_accepts_https_analysis_endpoint(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is True

@@ -291,3 +291,47 @@ def test_readiness_accepts_https_analysis_endpoint(monkeypatch):
         ready, components = required_dependencies_ready()
     assert ready is True
     assert components["analysis_model"] is True
+
+
+@pytest.mark.asyncio
+async def test_model_adapter_sends_evidence_with_real_newlines(monkeypatch):
+    import httpx
+
+    from ucos_core.agents.research.contracts import EvidenceItem
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "development")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "https://analysis.example/v1")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "test-key")
+    monkeypatch.setenv("ANALYSIS_MODEL", "test-model")
+    captured = {}
+
+    def handler(request):
+        import json
+
+        captured.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={"choices": [{"finish_reason": "stop", "message": {"content": "grounded"}}]},
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.model_analysis.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        evidence = [
+            EvidenceItem(
+                source="tavily",
+                title="A title",
+                url="https://example.com/article",
+                excerpt="Evidence excerpt",
+                retrieved_at="2026-10-22T00:00:00+00:00",
+            )
+        ]
+        result = await OpenAICompatibleAnalyzer().analyze("a question", evidence)
+
+    user_content = captured["messages"][1]["content"]
+    assert result == "grounded"
+    assert "\\n" not in user_content
+    assert "\n\nEvidence:\n[1] A title\nURL: https://example.com/article\nEvidence: Evidence excerpt" in user_content

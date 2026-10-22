@@ -156,3 +156,69 @@ This section supersedes the older point-in-time snapshot above where it differs.
 - Pre-migration manual snapshot `snap-falling-snow-azcy9onf` was confirmed present immediately after migration. Restore drill remains unverified; automated snapshot scheduling remains unavailable for this Neon project.
 - This was a schema-only migration. No production login roles or grants were changed, no secrets or Render settings were changed, no deployment occurred, and no live provider-backed smoke test was run.
 - Next gates remain: configure/verify least-privilege runtime and provisioning credentials through approved secret management; approve and provision the exact scope with an audit record; configure Render branch/health-check/ingress; verify health endpoints and run authenticated persistence/replay smoke; configure/verify GitHub branch protection. Do not declare full production readiness until those checks pass.
+
+## Latest re-verified Agent 01 checkpoint — 2026-10-21 (Asia/Karachi)
+
+This checkpoint records fresh read-only checks and the current isolated PR #20 branch. It does not authorize or prove a production release.
+
+### Exact-head code/CI state
+- Agent 01 hardening PR #20 is open, draft, and unmerged.
+- Exact head at this checkpoint: `ea1d4d5f1235e4434127ac8c0097eb429748fec4`.
+- CI run #150 passed on that exact head: [run #150](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39500145342). Ruff, PostgreSQL-backed tests, Docker build, and non-root container verification passed.
+- Code changes in this branch align API token minimum-length enforcement with readiness checks and add regression coverage. The API's minimum-length gate does not prove entropy; service operators must generate tokens with a cryptographically secure random generator.
+
+### Fresh production read-only checks
+- Render service `ucos-core-agent01` remains configured for branch `agent-01/production-v1`, auto-deploy is enabled, `healthCheckPath` is unset, and ingress remains `0.0.0.0/0`.
+- Last observed live deploy is `cac576d80761c04866a7e06e11473c71fbaf8aff`, marked live on 2026-10-16. No new production deployment was triggered.
+- Production Neon branch `br-dark-pond-azjzxzmd` contains the four expected tables: `ucos_research_runs`, `ucos_research_scope_grants`, `ucos_scope_provisioning_audit`, and `ucos_scope_provisioning_requests`.
+- Fresh read-only counts: enabled scope grants = 0; research runs = 0; provisioning audit rows = 0; provisioning request rows = 0.
+- The only production PostgreSQL role returned by the connected role inventory is `ucos_core_owner`. A dedicated least-privilege runtime role was not found.
+- Secret values/presence and live runtime connectivity have not been verified. No authenticated live persistence/replay smoke test has run.
+
+### Remaining release gates
+1. Owner/operator must approve the exact initial tenant/workspace/brand identifiers and provisioning actor. The CLI creates fresh UUID scope identifiers on a new idempotency key; do not run it before the owner approves the real project scope and actor.
+2. Provision a dedicated least-privilege runtime role and validate its exact table/column privileges with the approved migration/operator process. Do not use `ucos_core_owner` as the application runtime credential.
+3. Configure and verify Render secrets directly in the Render secret manager. Never print or paste secret values into issues, logs, or this file.
+4. Set the service branch, readiness health-check path, and ingress policy only under an approved change plan with a known rollback/recovery path.
+5. Run the manual live verifier only after its production GitHub Environment secrets/approval are configured. It makes real provider calls and verifies durable persistence plus identical replay using a separate read-only verification DB credential.
+6. Keep PR #20 and integration PR #12 unmerged until exact-head CI, owner-approved scope, runtime permissions, secrets, readiness, and live end-to-end verification are all resolved.
+
+### Production changes made in this checkpoint
+None. No production migration, scope/grant write, role creation, secret update, Render configuration change, deployment, or provider-backed live request occurred.
+
+### Backup recheck — 2026-10-21 (read-only)
+
+- Neon snapshot inventory currently returns `snap-falling-snow-azcy9onf`, named `ucos-core-pre-production-migration-2026-10-20`, for production branch `br-dark-pond-azjzxzmd`. Recorded expiry: 2026-11-03 00:00 UTC.
+- This establishes that a snapshot record exists; **a restore/rollback drill has not been performed or verified**. Before production migrations or deployment, recheck snapshot status/expiry, verify that it is restorable, and document the exact restore/rollback steps.
+
+
+## Latest continuation checkpoint — 2026-10-22
+
+### Single-owner scope and exact-head CI
+
+- UCOS is a private, single-owner project. Multi-customer onboarding is not a release requirement. Tenant/workspace/brand IDs are retained only as current internal authorization/schema fields until a deliberate, separately reviewed compatibility migration replaces them.
+- PR #23 (single-owner scope clarification) exact head: `204968049f14e77d19e699d34c3bd077dca70db5`. GitHub Actions CI run #154 completed successfully on that exact head. PR remains draft/open/unmerged; it changes this runbook only.
+- PR #20 (Agent 01 auth hardening) and PR #22 (CEO-owned learning architecture boundary) remain draft/open/unmerged in the current GitHub readback. Their CI must be checked on the actual integration candidate before release; previously passing runs do not attest to a different combined commit.
+
+### Architecture coverage — code review, not live proof
+
+- Current research contract is synchronous: `POST /v1/agents/01/research` returns only `SUCCEEDED` or `NO_RESULTS`; the documented broader lifecycle (accepted/running/partial/failed/cancelled, task polling, report retrieval and follow-ups) is not demonstrated by this endpoint contract.
+- Current evidence schema contains source, title, URL, excerpt and retrieval timestamp. It does not expose the full architecture's proposed published/updated times, platform/region, normalized metric/unit, reliability/freshness score, corroboration/conflict state and source limitations as typed fields.
+- Runtime configuration currently wires a Tavily research source and an OpenAI-compatible analyzer. Separate, explicitly capability-declaring Pinterest, YouTube, Facebook, TikTok, Instagram and product/affiliate adapters have not been verified in this integration code snapshot. Do not claim those integrations are implemented or that private platform metrics are available.
+- CEO/Super-Intelligence must own cross-agent learning. Agent 01 may return traceable outcome evidence, but must not update its own policy/weights based on conversions, revenue, or engagement.
+
+These are implementation gaps to resolve through isolated PRs and tests; no speculative platform adapter, mock data, self-learning loop, or production write should be introduced to make a checklist appear complete.
+
+### Production gate status — verify again before rollout
+
+The latest previously recorded production snapshot lists no enabled research scope grants or research runs, and only the schema-owner PostgreSQL role in the role inventory. Render's recorded configuration tracks `agent-01/production-v1`, has public ingress `0.0.0.0/0`, and has no readiness health-check path; live endpoint behavior and secret values remain unverified. A manual Neon snapshot record exists through 2026-11-03 UTC, but no restore drill is verified and automated snapshot scheduling was not available. Treat these as last-recorded observations, not proof of the current live state: re-read each immediately before an approved release.
+
+**No release claim:** CI success on a documentation-only PR does not establish Agent 01 production readiness. Do not deploy, change secrets, alter ingress, create production roles/grants, run paid live provider calls, or change the production database without a verified target, a rollback plan, and the required action-specific owner authorization.
+
+
+## Result polling implementation checkpoint — 2026-10-22
+
+- PR #27 adds authenticated `GET /v1/agents/01/research/{request_id}` for durable request state/result retrieval, exact-scope database filtering, and a privacy-preserving 404 for missing or out-of-scope request IDs.
+- Exact-head CI run #163 passed on `6a20db9dba508dc2a74e8c754d171c2810f6b2bd`: Ruff, P0 safety/PostgreSQL integration tests, Docker build, and non-root runtime checks succeeded.
+- The endpoint covers stored `IN_PROGRESS`, `SUCCEEDED`, and `NO_RESULTS` records. It does **not** create a background worker queue, asynchronous acceptance lifecycle, cancellation, `PARTIAL/FAILED/CANCELLED` terminal states, or follow-up execution. Do not claim those architecture requirements are complete.
+- PR #27 remains draft/open/unmerged and has not been deployed. The public Render service still runs the previously verified commit until a separate release plan closes the production gates.

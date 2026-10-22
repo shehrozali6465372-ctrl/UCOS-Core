@@ -140,6 +140,29 @@ async def test_model_adapter_bounds_completion_and_requests_token_limit(monkeypa
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com:bad-port/report",
+        "https://example.com:99999/report",
+        "https://example.com/path with spaces",
+    ],
+)
+def test_evidence_rejects_malformed_url_syntax(url: str) -> None:
+    from pydantic import ValidationError
+
+    from ucos_core.agents.research.contracts import EvidenceItem
+
+    with pytest.raises(ValidationError):
+        EvidenceItem(
+            source="test",
+            title="Malformed source",
+            url=url,
+            excerpt="source text",
+            retrieved_at="2026-10-22T00:00:00Z",
+        )
+
+
+@pytest.mark.parametrize(
     "analysis_url",
     [
         "http://external.example/v1",

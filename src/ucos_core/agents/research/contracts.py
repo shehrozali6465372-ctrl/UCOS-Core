@@ -55,20 +55,26 @@ class EvidenceItem(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_http_url(cls, value: str) -> str:
-        """Disallow non-web schemes and embedded credentials in evidence citations."""
+        """Validate evidence URL syntax; this is not a network-level SSRF defense."""
         try:
             parsed = urlsplit(value)
+            hostname = parsed.hostname
             valid = (
                 parsed.scheme in {"https", "http"}
-                and bool(parsed.hostname)
+                and bool(hostname)
                 and parsed.username is None
                 and parsed.password is None
                 and not any(ord(char) < 32 for char in value)
+                and not any(char.isspace() for char in value)
+                and parsed.port != 0
             )
+            # Invalid port syntax raises ValueError on parsed.port; reject it.
         except ValueError:
             valid = False
         if not valid:
-            raise ValueError("evidence URL must be an HTTP(S) URL without embedded credentials")
+            raise ValueError(
+                "evidence URL must be valid HTTP(S) without embedded credentials"
+            )
         return value
 
     @field_validator("retrieved_at", "published_at", "updated_at")

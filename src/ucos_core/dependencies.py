@@ -155,7 +155,7 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
         port = parsed_model_url.port
         has_control_or_space = any(
             ord(char) < 33 or ord(char) == 127 for char in analysis_base_url
-        )
+        ) or any(char.isspace() for char in analysis_base_url)
     except ValueError:
         hostname = None
         port = None

@@ -200,7 +200,7 @@ def test_model_adapter_rejects_loopback_http_in_production(monkeypatch):
 
     monkeypatch.setenv("UCOS_ENV", "production")
     monkeypatch.setenv("ANALYSIS_BASE_URL", "http://127.0.0.1:1234/v1")
-    with pytest.raises(RuntimeError, match="must use HTTPS in production"):
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
         OpenAICompatibleAnalyzer()
 
 

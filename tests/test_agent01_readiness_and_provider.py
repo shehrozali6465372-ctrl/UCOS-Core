@@ -409,3 +409,75 @@ async def test_model_adapter_sends_evidence_with_real_newlines(monkeypatch):
         "\nEvidence: Evidence excerpt"
     )
     assert expected_prompt in user_content
+
+
+@pytest.mark.asyncio
+async def test_tavily_skips_malformed_or_empty_evidence_fields(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+
+    async def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "url": "https://example.com/null-content",
+                        "title": "Invalid",
+                        "content": None,
+                    },
+                    {
+                        "url": "https://example.com/object-content",
+                        "title": "Invalid",
+                        "content": {"text": "not evidence"},
+                    },
+                    {
+                        "url": "https://example.com/blank-content",
+                        "title": "Invalid",
+                        "content": "   ",
+                    },
+                    None,
+                    {
+                        "url": "https://example.com/fallback-title",
+                        "title": "   ",
+                        "content": "  Valid evidence  ",
+                    },
+                    {
+                        "url": "https://example.com/trimmed",
+                        "title": "  Grounded title  ",
+                        "content": "  Grounded excerpt  ",
+                    },
+                ]
+            },
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        evidence = await TavilyResearchSource().search("query", 10)
+
+    assert [item.title for item in evidence] == [
+        "https://example.com/fallback-title",
+        "Grounded title",
+    ]
+    assert [item.excerpt for item in evidence] == [
+        "Valid evidence",
+        "Grounded excerpt",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_tavily_rejects_invalid_results_container(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+
+    async def handler(_request):
+        return httpx.Response(200, json={"results": {"not": "a list"}})
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        with pytest.raises(RuntimeError, match="invalid response shape"):
+            await TavilyResearchSource().search("query", 3)

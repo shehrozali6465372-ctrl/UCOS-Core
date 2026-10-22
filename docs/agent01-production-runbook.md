@@ -360,3 +360,27 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Extended the production runtime privilege probe beyond table-level ACLs: it now rejects column-level `INSERT`/`UPDATE`/`REFERENCES` on scope grants and any column-level `SELECT`/`INSERT`/`UPDATE`/`REFERENCES` access to scope-provisioning audit/request tables. This prevents column-only grants from bypassing the least-privilege gate.
 - The per-privilege regression matrix now covers 47 query results; real PostgreSQL integration coverage remains enabled. Exact-head CI is required for this new code/test head.
 - No production roles or grants were changed.
+
+
+
+## Fresh infrastructure recheck — 2026-10-22 (read-only)
+
+### Neon production branch
+
+- Project `billowing-meadow-65083232` (`UCOS-Core`) is reachable through the connected Neon account; default branch `main` is `br-dark-pond-azjzxzmd`, state `ready`, PostgreSQL 17.
+- All four expected tables exist: `ucos_research_runs`, `ucos_research_scope_grants`, `ucos_scope_provisioning_audit`, and `ucos_scope_provisioning_requests`. The research-run table has `max_results`, `claim_expires_at`, `claim_generation`, and the expected `IN_PROGRESS/SUCCEEDED/NO_RESULTS` status constraint.
+- Read-only counts: 0 research runs, 0 enabled scope grants, 0 provisioning audit rows, 0 provisioning request rows. No tenant/workspace/brand scope is provisioned; production research must remain not ready.
+- Role inventory still contains only `ucos_core_owner`. Read-only role checks confirm `CREATEDB`, `CREATEROLE`, replication and RLS-bypass attributes are enabled; it can create in `public` and has database `CREATE` plus access to the provisioning audit table. This is not a safe runtime identity and the new production readiness gate is expected to reject it. No dedicated runtime role was created.
+- Manual snapshot `snap-falling-snow-azcy9onf` exists and expires `2026-11-03T00:00:00Z`; automatic snapshot schedule is empty. Existence is not a restore drill; restoration remains unverified.
+
+### Render production service
+
+- The target service was located in the connected Render account/workspace `3rd render 3500` / `tea-db8u854s728c73b3pr60`: service `ucos-core-agent01`, id `srv-db8vf5avcj2c73bcbh00`.
+- Current readback: repository `shehrozali6465372-ctrl/UCOS-Core`, branch `agent-01/production-v1`, auto-deploy enabled, Dockerfile `./Dockerfile`, health-check path unset, public ingress `0.0.0.0/0`, one free instance in Singapore.
+- Latest live deployment is still commit `cac576d80761c04866a7e06e11473c71fbaf8aff` (2026-10-16); the latest successful deploy was manual. Two earlier deploy attempts ended with non-zero exit. Environment variable values were not read. No service settings or deployment were changed.
+
+### Current release gate
+
+- GitHub `main` remains at `d770512de3bf7523ff04885a671f82dfa93d952e`, branch protection `false`. The full code candidate is [draft PR #34](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/34), exact code head `80e181829174d08324eb485eddbe9cfa7ffcff92`; exact-head CI runs [#271](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39774088966) and [#272](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39774089258) passed.
+- **Production NOT READY.** Blockers are concrete: zero enabled scope grants; no dedicated least-privilege runtime role; owner role has dangerous privileges; Render tracks an older branch, has no readiness health check, and exposes public ingress; backup restore drill and automatic schedule are unverified; main branch protection is off; secrets are not verified; no authenticated live persistence/replay smoke has run.
+- These were read-only inspections only. No production database, role, grant, secret, Render setting, or deployment was modified.

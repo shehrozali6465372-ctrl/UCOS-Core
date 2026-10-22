@@ -214,3 +214,11 @@ These are implementation gaps to resolve through isolated PRs and tests; no spec
 The latest previously recorded production snapshot lists no enabled research scope grants or research runs, and only the schema-owner PostgreSQL role in the role inventory. Render's recorded configuration tracks `agent-01/production-v1`, has public ingress `0.0.0.0/0`, and has no readiness health-check path; live endpoint behavior and secret values remain unverified. A manual Neon snapshot record exists through 2026-11-03 UTC, but no restore drill is verified and automated snapshot scheduling was not available. Treat these as last-recorded observations, not proof of the current live state: re-read each immediately before an approved release.
 
 **No release claim:** CI success on a documentation-only PR does not establish Agent 01 production readiness. Do not deploy, change secrets, alter ingress, create production roles/grants, run paid live provider calls, or change the production database without a verified target, a rollback plan, and the required action-specific owner authorization.
+
+
+## Result polling implementation checkpoint — 2026-10-22
+
+- PR #27 adds authenticated `GET /v1/agents/01/research/{request_id}` for durable request state/result retrieval, exact-scope database filtering, and a privacy-preserving 404 for missing or out-of-scope request IDs.
+- Exact-head CI run #163 passed on `6a20db9dba508dc2a74e8c754d171c2810f6b2bd`: Ruff, P0 safety/PostgreSQL integration tests, Docker build, and non-root runtime checks succeeded.
+- The endpoint covers stored `IN_PROGRESS`, `SUCCEEDED`, and `NO_RESULTS` records. It does **not** create a background worker queue, asynchronous acceptance lifecycle, cancellation, `PARTIAL/FAILED/CANCELLED` terminal states, or follow-up execution. Do not claim those architecture requirements are complete.
+- PR #27 remains draft/open/unmerged and has not been deployed. The public Render service still runs the previously verified commit until a separate release plan closes the production gates.

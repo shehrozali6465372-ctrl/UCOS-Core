@@ -197,3 +197,21 @@ async def test_get_result_returns_only_exact_scope(repository):
         req.request_id, "different-tenant", req.workspace_id, req.brand_id
     )
     assert hidden is None
+
+
+def test_runtime_privilege_probe_executes_against_real_postgres_role(
+    repository, monkeypatch
+):
+    from ucos_core.dependencies import probe_research_runtime_privileges
+
+    # The ephemeral CI connection owns the migrated test tables, so it should
+    # pass in development but fail the production least-privilege gate.
+    monkeypatch.setenv("UCOS_ENV", "development")
+    development = probe_research_runtime_privileges()
+    assert development.configured is True
+    assert development.available is True
+
+    monkeypatch.setenv("UCOS_ENV", "production")
+    production = probe_research_runtime_privileges()
+    assert production.configured is True
+    assert production.available is False

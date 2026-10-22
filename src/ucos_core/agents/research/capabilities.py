@@ -67,9 +67,11 @@ def build_capability_catalog() -> AgentCapabilityResponse:
                 "present" if analyzer_key and analyzer_model and analyzer_url else "missing"
             ),
             limitations=[
-                "Credential presence does not validate the key, model, endpoint, or live availability.",
+                "Credential presence does not validate the key, model, or endpoint.",
+                "Live provider availability remains unverified.",
                 "Analysis is not a sales, conversion, commission, or revenue guarantee.",
-                "The analyzer consumes retrieved evidence; it creates no platform-specific API access.",
+                "The analyzer consumes retrieved evidence.",
+                "It does not create platform-specific API access.",
             ],
         ),
     ]
@@ -101,7 +103,8 @@ def build_capability_catalog() -> AgentCapabilityResponse:
             credential_status="not_applicable",
             limitations=[
                 "No verified affiliate-program or commerce adapter is wired into this runtime.",
-                "Do not infer commission rates, eligibility, attribution, stock, prices, or sales volume.",
+                "Do not infer commission rates, eligibility, or attribution.",
+                "Do not infer stock, prices, or sales volume.",
                 "Each commercial claim requires a current, traceable source and retrieval date.",
             ],
         )

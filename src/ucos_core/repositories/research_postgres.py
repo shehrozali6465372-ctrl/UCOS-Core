@@ -105,7 +105,10 @@ class PostgresResearchRepository:
                        SET claim_generation = claim_generation + 1,
                            claim_expires_at = now() + interval '5 minutes'
                        WHERE request_id = %s AND claim_generation = %s
-                         AND claim_expires_at <= now()
+                         AND (
+                             claim_expires_at IS NULL
+                             OR claim_expires_at <= now()
+                         )
                        RETURNING claim_generation""",
                     (request.request_id, row[12]),
                 )

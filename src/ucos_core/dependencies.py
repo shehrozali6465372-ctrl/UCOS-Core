@@ -119,6 +119,38 @@ def probe_research_schema() -> ProbeResult:
         return ProbeResult(configured=True, available=False)
 
 
+def probe_research_runtime_privileges() -> ProbeResult:
+    """Verify the runtime role can perform every database operation used by Agent 01."""
+    database_url = _configured_url("DATABASE_URL")
+    if not database_url:
+        return ProbeResult(configured=False, available=False)
+    try:
+        import psycopg
+
+        with psycopg.connect(database_url, connect_timeout=2) as connection:
+            privileges = connection.execute(
+                """SELECT
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'SELECT'
+                       )"""
+            ).fetchone()
+        return ProbeResult(
+            configured=True,
+            available=bool(privileges and all(privileges)),
+        )
+    except Exception:
+        return ProbeResult(configured=True, available=False)
+
+
 def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     from ucos_core.readiness import DependencyStatus, evaluate_readiness
 
@@ -140,6 +172,10 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     components["research_auth"] = token_configured
     components["research_scope"] = scope_grant.configured and scope_grant.available
     components["research_schema"] = research_schema.configured and research_schema.available
+    runtime_privileges = probe_research_runtime_privileges()
+    components["research_runtime_privileges"] = (
+        runtime_privileges.configured and runtime_privileges.available
+    )
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())
     # Match the analyzer's actual endpoint validation. A non-empty URL is not
     # sufficient: remote endpoints must use HTTPS and must not embed credentials,

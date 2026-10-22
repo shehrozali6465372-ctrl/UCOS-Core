@@ -232,3 +232,11 @@ Existing read-only verification recorded for production Neon:
 5. Do not deploy production solely because CI is green.
 
 Production readiness status: **NOT READY**. No production changes were made as part of this checkpoint.
+
+
+## Continuation checkpoint — 2026-10-22 (PR #33 model prompt fix)
+
+- PR #33: [preserve real newlines in model evidence prompt](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/33), branch `agent-01/model-prompt-newlines`, stacked on PR #32. Code change fixes the separators in the outgoing analysis prompt and adds a transport-level regression test.
+- First CI attempt #176 ([run](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39763900136)) failed at Ruff only: one assertion exceeded the configured 100-character line limit. Tests, Docker build, and non-root verification were skipped by the workflow after lint failed.
+- Corrected the assertion formatting in commit `95769e59c9c63725a7e8b732888056a63297e4f2`. As of this checkpoint, GitHub has not returned a workflow run or commit status for that corrected exact head; CI remains pending/unverified. Do not merge until exact-head CI passes.
+- PR #33 remains draft/open/unmerged. No production resource, secret, database, Render setting or deployment was modified. This prompt serialization fix does not certify production readiness.

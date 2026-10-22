@@ -43,23 +43,33 @@ def build_capability_catalog() -> AgentCapabilityResponse:
         ProviderCapability(
             provider="tavily_general_web_search",
             status="implemented",
-            capabilities=["general_web_search", "source_title_url_excerpt", "retrieval_timestamp"],
+            capabilities=[
+                "general_web_search",
+                "source_title_url_excerpt",
+                "retrieval_timestamp",
+            ],
             credential_status="present" if tavily_key else "missing",
             limitations=[
                 "Credential presence is not validation of the key or live API availability.",
-                "Not a platform-owned analytics adapter; private platform metrics are unavailable through this integration.",
-                "Publication date, update date, platform metrics, and regional coverage may be absent from retrieved results.",
+                "Not a platform-owned analytics adapter.",
+                "Private platform metrics are unavailable through this integration.",
+                "Publication/update dates, platform metrics, and regional coverage may be absent.",
             ],
         ),
         ProviderCapability(
             provider="openai_compatible_analysis",
             status="implemented",
-            capabilities=["evidence_grounded_text_analysis", "numbered_source_citations"],
-            credential_status="present" if analyzer_key and analyzer_model and analyzer_url else "missing",
+            capabilities=[
+                "evidence_grounded_text_analysis",
+                "numbered_source_citations",
+            ],
+            credential_status=(
+                "present" if analyzer_key and analyzer_model and analyzer_url else "missing"
+            ),
             limitations=[
-                "Credential presence is not validation of the key, model, endpoint, or live provider availability.",
+                "Credential presence does not validate the key, model, endpoint, or live availability.",
                 "Analysis is not a sales, conversion, commission, or revenue guarantee.",
-                "The analyzer consumes retrieved evidence; it does not create platform-specific API access.",
+                "The analyzer consumes retrieved evidence; it creates no platform-specific API access.",
             ],
         ),
     ]
@@ -79,7 +89,7 @@ def build_capability_catalog() -> AgentCapabilityResponse:
                 limitations=[
                     f"No dedicated {label} API adapter is wired into the current runtime.",
                     "Do not claim private analytics, trending metrics, or account-level access.",
-                    "Use only authorized public sources until a real provider adapter is implemented and tested.",
+                    "Use authorized public sources until a real adapter is implemented and tested.",
                 ],
             )
         )
@@ -90,8 +100,8 @@ def build_capability_catalog() -> AgentCapabilityResponse:
             capabilities=[],
             credential_status="not_applicable",
             limitations=[
-                "No verified affiliate-program or product-commerce adapter is wired into the current runtime.",
-                "Commission rates, eligibility, attribution rules, stock, price, and sales volume must not be inferred.",
+                "No verified affiliate-program or commerce adapter is wired into this runtime.",
+                "Do not infer commission rates, eligibility, attribution, stock, prices, or sales volume.",
                 "Each commercial claim requires a current, traceable source and retrieval date.",
             ],
         )

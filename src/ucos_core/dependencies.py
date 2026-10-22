@@ -173,6 +173,9 @@ def probe_research_runtime_privileges() -> ProbeResult:
                            current_user, 'public.ucos_research_scope_grants', 'TRIGGER'
                        ),
                        has_schema_privilege(current_user, 'public', 'CREATE'),
+                       has_database_privilege(
+                           current_user, current_database(), 'CREATE'
+                       ),
                        role.rolsuper,
                        role.rolcreatedb,
                        role.rolcreaterole,
@@ -235,7 +238,7 @@ def probe_research_runtime_privileges() -> ProbeResult:
                    FROM pg_roles AS role
                    WHERE role.rolname = current_user"""
             ).fetchone()
-        if not privileges or len(privileges) != 35 or not all(privileges[:4]):
+        if not privileges or len(privileges) != 36 or not all(privileges[:4]):
             return ProbeResult(configured=True, available=False)
         # Development may use an owner account; production must use a narrow
         # runtime identity. This rejects broad table/schema grants, provisioning

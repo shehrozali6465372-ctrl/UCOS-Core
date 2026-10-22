@@ -27,6 +27,28 @@ class ResearchRequest(BaseModel):
     query: str = Field(min_length=3, max_length=2000)
     max_results: int = Field(default=5, ge=1, le=10)
 
+    @field_validator(
+        "request_id",
+        "correlation_id",
+        "tenant_id",
+        "workspace_id",
+        "brand_id",
+        "workflow_id",
+        "workflow_step_id",
+    )
+    @classmethod
+    def require_canonical_identifiers(cls, value: str) -> str:
+        """Reject blank identifiers and values whose surrounding whitespace changes scope."""
+        if not value.strip() or value != value.strip():
+            raise ValueError("identifiers must be non-blank and have no surrounding whitespace")
+        return value
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def trim_query(cls, value: object) -> object:
+        """Normalize user whitespace before the query length constraint is applied."""
+        return value.strip() if isinstance(value, str) else value
+
 
 class EvidenceItem(BaseModel):
     """A retrieved evidence item with provenance; absent metadata is not inferred."""

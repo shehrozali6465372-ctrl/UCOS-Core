@@ -149,20 +149,36 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     analysis_base_url = os.getenv(
         "ANALYSIS_BASE_URL", "https://api.openai.com/v1"
     ).strip().rstrip("/")
-    parsed_model_url = urlsplit(analysis_base_url)
-    local_http = parsed_model_url.scheme == "http" and parsed_model_url.hostname in {
-        "localhost", "127.0.0.1", "::1"
-    }
+    try:
+        parsed_model_url = urlsplit(analysis_base_url)
+        hostname = parsed_model_url.hostname
+        port = parsed_model_url.port
+        has_control_or_space = any(
+            ord(char) < 33 or ord(char) == 127 for char in analysis_base_url
+        )
+    except ValueError:
+        hostname = None
+        port = None
+        parsed_model_url = None
+        has_control_or_space = True
+    local_http = bool(
+        parsed_model_url
+        and parsed_model_url.scheme == "http"
+        and hostname in {"localhost", "127.0.0.1", "::1"}
+    )
     # A loopback HTTP endpoint is a development-only escape hatch. Production
     # readiness must reject it even if the hostname is local.
     allow_local_http = local_http and not production_environment()
     analysis_endpoint_safe = bool(
-        parsed_model_url.hostname
+        parsed_model_url
+        and hostname
         and (parsed_model_url.scheme == "https" or allow_local_http)
         and parsed_model_url.username is None
         and parsed_model_url.password is None
         and not parsed_model_url.query
         and not parsed_model_url.fragment
+        and port != 0
+        and not has_control_or_space
     )
     components["analysis_model"] = bool(
         os.getenv("ANALYSIS_API_KEY", "").strip()

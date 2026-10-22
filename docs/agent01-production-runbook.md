@@ -268,3 +268,12 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Latest PR #33 head is now later than run #190 because this checkpoint is being added to the runbook; the docs-inclusive head needs its own exact-head CI confirmation. Do not represent run #190 as validating a later commit.
 - PR #33 and stacked PRs #29–#32 remain draft/open/unmerged. No production credentials, grants, roles, Render configuration, database data or deployment changed.
 - Production release is still blocked on authorized current-state readback, dedicated least-privilege DB runtime credentials, owner-approved exact scope/actor, Render settings/secret validation, backup restore drill, protected main branch rules, and real authenticated persistence/replay smoke verification.
+
+
+
+### Engineering loop checkpoint — 2026-10-22 (citation URL contract alignment)
+
+- Exact-head CI run [#200](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39767768592) passed on runbook-inclusive head `41e4e628fc209793567f0ee513ac68bb48b83cad`; Ruff, PostgreSQL-backed tests, container build, non-root runtime and cleanup passed.
+- Subsequent exact-head code runs [#201](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39767975297) and [#202](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39767988388) passed after aligning citation URL validation in the Tavily adapter and `EvidenceItem` contract. Empty explicit ports and backslashes are rejected along with malformed/out-of-range ports, credentials, whitespace/control characters and unsupported schemes. These are syntax/authority controls, not DNS/redirect/egress SSRF protection.
+- A further regression test for an explicit empty evidence URL port was added in commit `cb4fbcfe4fcc357708cd29602e449a29a67e502e`. CI run [#203](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39768134227) is required on this exact head before treating the last test update as validated.
+- Keep the stacked PRs draft until current exact-head CI and the combined candidate review are complete. Production still NOT READY; do not deploy while live credentials/scope/runtime role/Render/recovery/branch-protection/persistence-replay gates are unverified.

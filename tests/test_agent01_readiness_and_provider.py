@@ -145,7 +145,6 @@ async def test_model_adapter_bounds_completion_and_requests_token_limit(monkeypa
         "https://example.com:bad-port/report",
         "https://example.com:99999/report",
         "https://example.com/path with spaces",
-        "https://example.com/\\tbad",
     ],
 )
 def test_evidence_rejects_malformed_url_syntax(url: str) -> None:

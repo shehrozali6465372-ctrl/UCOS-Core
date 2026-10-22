@@ -238,8 +238,8 @@ def probe_research_runtime_privileges() -> ProbeResult:
         if not privileges or len(privileges) != 35 or not all(privileges[:4]):
             return ProbeResult(configured=True, available=False)
         # Development may use an owner account; production must use a narrow
-        # runtime identity. This rejects table owners, provisioners, schema
-        # creators, superusers, and roles with database/role/replication powers.
+        # runtime identity. This rejects broad table/schema grants, provisioning
+        # access, elevated role attributes, and membership in elevated roles.
         if production_environment() and any(privileges[4:]):
             return ProbeResult(configured=True, available=False)
         return ProbeResult(configured=True, available=True)

@@ -352,3 +352,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 
 - Added an integration test that executes the actual runtime privilege SQL against the ephemeral PostgreSQL instance used by CI. It asserts an owner-role connection is accepted in development mode but fails the production least-privilege gate. This complements mocked per-privilege regression coverage by validating SQL syntax, table inventory, and privilege-query shape against real PostgreSQL.
 - Latest code/test head: `dc711f878b44d50b449ce6667fe239ec4ba882f4`. Exact-head CI is required before considering this increment validated.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (column-level grant denial)
+
+- Extended the production runtime privilege probe beyond table-level ACLs: it now rejects column-level `INSERT`/`UPDATE`/`REFERENCES` on scope grants and any column-level `SELECT`/`INSERT`/`UPDATE`/`REFERENCES` access to scope-provisioning audit/request tables. This prevents column-only grants from bypassing the least-privilege gate.
+- The per-privilege regression matrix now covers 47 query results; real PostgreSQL integration coverage remains enabled. Exact-head CI is required for this new code/test head.
+- No production roles or grants were changed.

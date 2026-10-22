@@ -72,7 +72,9 @@ class EvidenceItem(BaseModel):
         except ValueError:
             valid = False
         if not valid:
-            raise ValueError("evidence URL must be a valid HTTP(S) URL without embedded credentials")
+            raise ValueError(
+                "evidence URL must be valid HTTP(S) without embedded credentials"
+            )
         return value
 
     @field_validator("retrieved_at", "published_at", "updated_at")

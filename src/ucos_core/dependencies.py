@@ -133,15 +133,38 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
 
     # Readiness is also a configuration safety gate: don't accept traffic when
     # authentication, the single authorized scope, or provider credentials are absent.
-    token_configured = bool(os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip())
+    token = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
+    # Match the API authentication gate so readiness never advertises a short
+    # configured token as safe for production traffic.
+    token_configured = len(token) >= 32
     components["research_auth"] = token_configured
     components["research_scope"] = scope_grant.configured and scope_grant.available
     components["research_schema"] = research_schema.configured and research_schema.available
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())
+    # Match the analyzer's actual endpoint validation. A non-empty URL is not
+    # sufficient: remote endpoints must use HTTPS and must not embed credentials,
+    # query strings, or fragments. Loopback HTTP is allowed for local development.
+    from urllib.parse import urlsplit
+
+    analysis_base_url = os.getenv(
+        "ANALYSIS_BASE_URL", "https://api.openai.com/v1"
+    ).strip().rstrip("/")
+    parsed_model_url = urlsplit(analysis_base_url)
+    local_http = parsed_model_url.scheme == "http" and parsed_model_url.hostname in {
+        "localhost", "127.0.0.1", "::1"
+    }
+    analysis_endpoint_safe = bool(
+        parsed_model_url.hostname
+        and (parsed_model_url.scheme == "https" or local_http)
+        and parsed_model_url.username is None
+        and parsed_model_url.password is None
+        and not parsed_model_url.query
+        and not parsed_model_url.fragment
+    )
     components["analysis_model"] = bool(
         os.getenv("ANALYSIS_API_KEY", "").strip()
         and os.getenv("ANALYSIS_MODEL", "gpt-4.1-mini").strip()
-        and os.getenv("ANALYSIS_BASE_URL", "https://api.openai.com/v1").strip()
+        and analysis_endpoint_safe
     )
     return ready and all(components.values()), components
 

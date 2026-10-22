@@ -1,6 +1,10 @@
 """Orchestration for Agent 01; fail closed on auth, provider, and persistence errors."""
 
-from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
+from ucos_core.agents.research.contracts import (
+    ResearchRequest,
+    ResearchResponse,
+    ResearchTaskResponse,
+)
 from ucos_core.agents.research.ports import (
     ResearchAnalyzer,
     ResearchAuthorizer,
@@ -91,3 +95,27 @@ class ResearchService:
             evidence=evidence,
             persisted=True,
         )
+
+
+    async def get_result(
+        self,
+        request_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        brand_id: str,
+    ) -> ResearchTaskResponse | None:
+        """Read a stored task only after the configured project scope is authorized."""
+        try:
+            allowed = await self._authorizer.authorize(
+                tenant_id, workspace_id, brand_id
+            )
+        except Exception as exc:
+            raise ResearchUnavailable("authorization service unavailable") from exc
+        if not allowed:
+            raise ResearchForbidden("request is outside authorized project scope")
+        try:
+            return await self._repository.get_result(
+                request_id, tenant_id, workspace_id, brand_id
+            )
+        except Exception as exc:
+            raise ResearchUnavailable("research result lookup failed") from exc

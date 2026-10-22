@@ -2,7 +2,12 @@
 
 from typing import Protocol
 
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
+from ucos_core.agents.research.contracts import (
+    EvidenceItem,
+    ResearchRequest,
+    ResearchResponse,
+    ResearchTaskResponse,
+)
 
 
 class ResearchSource(Protocol):
@@ -32,3 +37,11 @@ class ResearchRepository(Protocol):
         analysis: str,
         evidence: list[EvidenceItem],
     ) -> None: ...
+
+    async def get_result(
+        self,
+        request_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        brand_id: str,
+    ) -> ResearchTaskResponse | None: ...

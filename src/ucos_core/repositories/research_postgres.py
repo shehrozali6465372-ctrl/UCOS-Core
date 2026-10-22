@@ -5,7 +5,12 @@ import os
 
 import psycopg
 
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
+from ucos_core.agents.research.contracts import (
+    EvidenceItem,
+    ResearchRequest,
+    ResearchResponse,
+    ResearchTaskResponse,
+)
 
 
 class ResearchIdempotencyConflict(RuntimeError):
@@ -156,3 +161,39 @@ class PostgresResearchRepository:
                 raise ResearchIdempotencyConflict(
                     "request claim was superseded or is no longer writable"
                 )
+
+
+    async def get_result(
+        self,
+        request_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        brand_id: str,
+    ) -> ResearchTaskResponse | None:
+        """Read only a result inside the exact configured project authorization tuple."""
+        async with await psycopg.AsyncConnection.connect(
+            self._database_url(), connect_timeout=3
+        ) as conn:
+            cursor = await conn.execute(
+                """SELECT correlation_id, status, analysis_text, evidence_json, created_at
+                   FROM ucos_research_runs
+                   WHERE request_id = %s AND tenant_id = %s
+                     AND workspace_id = %s AND brand_id = %s""",
+                (request_id, tenant_id, workspace_id, brand_id),
+            )
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        evidence_payload = row[3]
+        if isinstance(evidence_payload, str):
+            evidence_payload = json.loads(evidence_payload)
+        evidence = [EvidenceItem.model_validate(item) for item in evidence_payload]
+        return ResearchTaskResponse(
+            request_id=request_id,
+            correlation_id=row[0],
+            status=row[1],
+            analysis=row[2],
+            evidence=evidence,
+            created_at=row[4],
+            persisted=True,
+        )

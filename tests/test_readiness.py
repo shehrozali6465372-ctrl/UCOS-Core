@@ -88,7 +88,7 @@ def test_readiness_passes_configuration_gate_when_all_values_exist(monkeypatch):
         lambda: ProbeResult(True, True),
     )
     values = {
-        "UCOS_RESEARCH_API_TOKEN": "test-token",
+        "UCOS_RESEARCH_API_TOKEN": "agent01-test-token-0123456789-abcdef-0123456789",
         "UCOS_RESEARCH_SCOPE_TENANT_ID": "tenant",
         "UCOS_RESEARCH_SCOPE_WORKSPACE_ID": "workspace",
         "UCOS_RESEARCH_SCOPE_BRAND_ID": "brand",
@@ -103,3 +103,41 @@ def test_readiness_passes_configuration_gate_when_all_values_exist(monkeypatch):
     ready, components = required_dependencies_ready()
     assert ready
     assert all(components.values())
+
+
+
+def test_readiness_rejects_token_shorter_than_api_minimum(monkeypatch):
+    from ucos_core.dependencies import ProbeResult, required_dependencies_ready
+
+    monkeypatch.setattr(
+        "ucos_core.dependencies.probe_postgres",
+        lambda: ProbeResult(True, True),
+    )
+    monkeypatch.setattr(
+        "ucos_core.dependencies.probe_redis",
+        lambda: ProbeResult(True, True),
+    )
+    monkeypatch.setattr(
+        "ucos_core.dependencies.probe_research_scope",
+        lambda: ProbeResult(True, True),
+    )
+    monkeypatch.setattr(
+        "ucos_core.dependencies.probe_research_schema",
+        lambda: ProbeResult(True, True),
+    )
+    values = {
+        "UCOS_RESEARCH_API_TOKEN": "short-token",
+        "UCOS_RESEARCH_SCOPE_TENANT_ID": "tenant",
+        "UCOS_RESEARCH_SCOPE_WORKSPACE_ID": "workspace",
+        "UCOS_RESEARCH_SCOPE_BRAND_ID": "brand",
+        "TAVILY_API_KEY": "test-tavily",
+        "ANALYSIS_API_KEY": "test-analysis",
+        "ANALYSIS_MODEL": "test-model",
+        "ANALYSIS_BASE_URL": "https://example.invalid/v1",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+
+    ready, components = required_dependencies_ready()
+    assert not ready
+    assert components["research_auth"] is False

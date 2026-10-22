@@ -2,10 +2,19 @@
 
 import hmac
 import os
+import secrets
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Path
 
-from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
+from ucos_core.agents.research.capabilities import (
+    AgentCapabilityResponse,
+    build_capability_catalog,
+)
+from ucos_core.agents.research.contracts import (
+    ResearchRequest,
+    ResearchResponse,
+    ResearchTaskResponse,
+)
 from ucos_core.agents.research.service import (
     ResearchBusy,
     ResearchConflict,
@@ -30,8 +39,13 @@ def configure_research_service(service: ResearchService) -> None:
 
 def _authenticate(authorization: str | None) -> None:
     expected = os.getenv("UCOS_RESEARCH_API_TOKEN", "").strip()
-    if not expected:
-        raise HTTPException(status_code=503, detail="research authentication is not configured")
+    # Enforce a minimum configured token length. Length alone does not prove
+    # entropy; operators must generate the value with a cryptographic RNG.
+    if len(expected) < 32:
+        raise HTTPException(
+            status_code=503,
+            detail="research authentication is not configured safely",
+        )
     scheme, separator, token = (authorization or "").partition(" ")
     # HTTP authentication uses one scheme/token separator; reject empty or
     # whitespace-padded credentials instead of accepting accidental formatting.
@@ -40,13 +54,12 @@ def _authenticate(authorization: str | None) -> None:
         or scheme.casefold() != "bearer"
         or not token
         or token != token.strip()
-        or not _constant_time_equal(token, expected)
+        or not secrets.compare_digest(token.encode("utf-8"), expected.encode("utf-8"))
     ):
         raise HTTPException(status_code=401, detail="invalid bearer token")
 
 
-def _authorize_configured_scope(request: ResearchRequest) -> None:
-    """Bind this service token to one explicitly configured tenant/workspace/brand scope."""
+def _configured_scope() -> tuple[str, str, str]:
     names = (
         "UCOS_RESEARCH_SCOPE_TENANT_ID",
         "UCOS_RESEARCH_SCOPE_WORKSPACE_ID",
@@ -55,13 +68,53 @@ def _authorize_configured_scope(request: ResearchRequest) -> None:
     configured = tuple(os.getenv(name, "").strip() for name in names)
     if not all(configured):
         raise HTTPException(status_code=503, detail="research token scope is not configured")
+    return configured[0], configured[1], configured[2]
+
+
+def _authorize_configured_scope(request: ResearchRequest) -> None:
+    """Bind this service token to one explicitly configured project scope."""
     requested = (request.tenant_id, request.workspace_id, request.brand_id)
+    configured = _configured_scope()
     matches = (
         _constant_time_equal(actual, expected)
         for actual, expected in zip(requested, configured, strict=True)
     )
     if not all(matches):
-        raise HTTPException(status_code=403, detail="request is outside configured token scope")
+        raise HTTPException(status_code=403, detail="request is outside configured project scope")
+
+
+@router.get("/capabilities", response_model=AgentCapabilityResponse)
+async def capabilities(
+    authorization: str | None = Header(default=None),
+) -> AgentCapabilityResponse:
+    """Expose actual integrations and explicitly mark unsupported providers."""
+    _authenticate(authorization)
+    _configured_scope()
+    return build_capability_catalog()
+
+
+@router.get("/{request_id}", response_model=ResearchTaskResponse)
+async def get_research_result(
+    request_id: str = Path(min_length=1, max_length=128),
+    authorization: str | None = Header(default=None),
+) -> ResearchTaskResponse:
+    """Poll/read a durable result, restricted to the configured single-project scope."""
+    _authenticate(authorization)
+    tenant_id, workspace_id, brand_id = _configured_scope()
+    if _service is None:
+        raise HTTPException(status_code=503, detail="research service not configured")
+    try:
+        result = await _service.get_result(
+            request_id, tenant_id, workspace_id, brand_id
+        )
+    except ResearchForbidden as exc:
+        raise HTTPException(status_code=403, detail="project scope is not authorized") from exc
+    except ResearchUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result is None:
+        # Do not reveal whether another scope owns this request ID.
+        raise HTTPException(status_code=404, detail="research request not found")
+    return result
 
 
 @router.post("", response_model=ResearchResponse)

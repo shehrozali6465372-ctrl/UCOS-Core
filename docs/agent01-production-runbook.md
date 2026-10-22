@@ -190,3 +190,45 @@ None. No production migration, scope/grant write, role creation, secret update, 
 
 - Neon snapshot inventory currently returns `snap-falling-snow-azcy9onf`, named `ucos-core-pre-production-migration-2026-10-20`, for production branch `br-dark-pond-azjzxzmd`. Recorded expiry: 2026-11-03 00:00 UTC.
 - This establishes that a snapshot record exists; **a restore/rollback drill has not been performed or verified**. Before production migrations or deployment, recheck snapshot status/expiry, verify that it is restorable, and document the exact restore/rollback steps.
+
+
+## Current continuation checkpoint — 2026-10-22  (live repository checks)
+
+This checkpoint is supplemental and supersedes earlier statements in this file only where they explicitly conflict. No production infrastructure, credentials, tables, grants, roles, or deployments were changed while preparing this checkpoint.
+
+### Isolated code hardening PRs
+
+The following stacked changes are open, draft, unmerged, and are not present on `main`:
+
+- PR #30 [Evidence URL syntax validation](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/30), exact head `827c32c8512d0ceee26bd4c8782f2fef6bf7aa5c`, CI run #169 passed: [run](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39761542949).
+- PR #31 [Provider URL filtering aligned with evidence contract](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/31), exact head `fe9e7f8d57552bbffa88bf3a337992f4075b6382`, CI run #171 passed: [run](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39762151030). It is stacked on PR #30.
+- PR #32 [Require HTTPS model endpoint in production](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/32), exact head `cd96127381cc7e2d9bbf88d452e59fd0e08f0bf9`, CI run #174 passed: [run](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39762968068). It is stacked on PR #31. Loopback HTTP remains available in non-production development, while production mode rejects it; readiness uses the corresponding policy.
+- All three exact-head runs passed Ruff, the P0 safety/PostgreSQL-backed test suite, Docker build, non-root container verification, and cleanup. These are ephemeral CI checks, not live production verification.
+
+### Fresh GitHub branch protections
+
+Read-only GitHub branch records returned:
+- `main`: `d770512de3bf7523ff04885a671f82dfa93d952e`, `protected=false`, required status-check enforcement `off`, no required checks.
+- `agent-01/clean-main-integration`: `a59ddc16a0e1aacefa2661863bdc65645c69018d`, `protected=false`, required status-check enforcement `off`, no required checks.
+
+Treat this as an active repository release-control blocker.
+
+### Production state and remaining blockers
+
+Existing read-only verification recorded for production Neon:
+- The four expected research/provisioning schema tables and claim/replay columns are present following the 2026-10-20 migration.
+- Enabled scope grants: 0; research runs: 0; provisioning audit rows: 0; provisioning request rows: 0.
+- The connected role inventory found only `ucos_core_owner`; a dedicated least-privilege runtime login role has not been verified.
+- Manual snapshot `snap-falling-snow-azcy9onf` was recorded to expire 2026-11-03T00:00:00Z. A restore drill remains unverified and automated snapshot scheduling was reported unavailable.
+- Render's last readback showed service `ucos-core-agent01` tracking `agent-01/production-v1`, auto-deploy enabled, readiness health-check unset, ingress `0.0.0.0/0`, and last known live commit `cac576d80761c04866a7e06e11473c71fbaf8aff`. These Render values have not been freshly re-read in this continuation and must be reconfirmed immediately before any release.
+- Required secret values must not be printed; actual presence and validity remain unverified. Live authenticated persistence/replay verification has not been performed.
+
+### Next engineering steps
+
+1. Finish code-level SSRF policy review at any actual URL-dereferencing boundary. Current changes validate candidate citation syntax; they do not by themselves defend against DNS rebinding, private/reserved IP resolution, redirect chains, or unsafe outbound network routes. Where evidence URLs are never fetched by UCOS, document the boundary rather than claiming a complete SSRF fix.
+2. Review existing open PRs and the combined release candidate for duplicate/stacked diffs before merging. Keep PRs #30–#32 draft until their combined behavior and target integration diff are reviewed; do not merge blindly.
+3. Configure/verify required branch protections via authorized repository owner/admin controls.
+4. Under an approved change plan, provision and verify dedicated least-privilege database roles, approve the exact scope and actor, verify secret configuration, correct Render branch/health readiness/ingress, recheck backup/recovery and run the authenticated end-to-end persistence/replay smoke test.
+5. Do not deploy production solely because CI is green.
+
+Production readiness status: **NOT READY**. No production changes were made as part of this checkpoint.

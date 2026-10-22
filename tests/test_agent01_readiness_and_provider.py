@@ -238,6 +238,8 @@ def test_model_adapter_allows_loopback_http_outside_production(monkeypatch):
         "https://example.com:invalid/v1",
         "https://example.com:99999/v1",
         "https://example.com:0/v1",
+        "https://example.com/path with spaces",
+        "https://example.com/path\\twith-control",
     ],
 )
 def test_readiness_fails_closed_for_unsafe_analysis_endpoint(

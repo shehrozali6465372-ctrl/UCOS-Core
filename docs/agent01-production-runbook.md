@@ -296,3 +296,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Production readiness now checks not only the runtime's required read/write grants on `ucos_research_runs` and read access to `ucos_research_scope_grants`, but also rejects any access to `ucos_scope_provisioning_audit` or `ucos_scope_provisioning_requests`. The runtime role must not be able to create/modify/erase provisioning records; provisioning uses a separate operator identity.
 - The regression matrix now toggles every required/forbidden privilege bit, including the provisioning tables. Exact-head CI is running for the code/test head `fa93053df295be532585196de6e011e042945343`: [run #226](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39771674806). Earlier run #224 passed before this additional hardening and is not evidence for this latest change.
 - No production migration, grant, role, secret, Render setting or deployment was changed. This check intentionally makes readiness fail closed if required migrations/tables are absent or runtime grants are broader than approved.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (inherited database-role review)
+
+- Further privilege review found that checking only the login role's own PostgreSQL attributes is insufficient if it inherits membership in an elevated role. The production readiness probe now checks effective membership in roles with superuser, CREATEDB, CREATEROLE, replication, or RLS-bypass attributes and fails closed if any such membership exists.
+- The runtime privilege regression matrix includes this new membership result. Exact-head CI is required on the latest code/test changes; earlier run #227 validated the prior head only.
+- No database role, grant, production setting, or deployment was changed. This is a readiness guard and does not replace operator verification of actual production role membership.

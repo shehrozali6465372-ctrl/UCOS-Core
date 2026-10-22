@@ -281,3 +281,77 @@ def test_api_accepts_sufficient_length_token_and_exact_scope(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
+
+
+def test_evidence_provenance_defaults_are_explicit_not_inferred() -> None:
+    item = EvidenceItem(
+        source="tavily",
+        title="Research result",
+        url="https://example.com/research",
+        excerpt="Observed evidence",
+        retrieved_at="2026-10-22T08:00:00+05:00",
+    )
+    assert item.published_at is None
+    assert item.updated_at is None
+    assert item.metric_value is None
+    assert item.evidence_kind == "unknown"
+    assert item.reliability == "unverified"
+    assert item.freshness == "unknown"
+    assert item.corroboration == "unknown"
+    assert item.retrieved_at.isoformat() == "2026-10-22T03:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "javascript:alert(1)",
+        "file:///etc/passwd",
+        "https://user:password@example.com/report",
+        "https://example.com/\nheader",
+    ],
+)
+def test_evidence_rejects_non_http_or_credential_bearing_urls(url: str) -> None:
+    with pytest.raises(ValueError):
+        EvidenceItem(
+            source="test",
+            title="Unsafe source",
+            url=url,
+            excerpt="source text",
+            retrieved_at="2026-10-22T00:00:00Z",
+        )
+
+
+def test_evidence_rejects_timezone_naive_timestamps() -> None:
+    with pytest.raises(ValueError):
+        EvidenceItem(
+            source="test",
+            title="Missing timezone",
+            url="https://example.com",
+            excerpt="source text",
+            retrieved_at="2026-10-22T00:00:00",
+        )
+
+
+def test_evidence_accepts_known_metadata_without_claiming_sales() -> None:
+    item = EvidenceItem(
+        source="approved-provider",
+        title="Trend report",
+        url="https://example.com/trends",
+        excerpt="The source reports 120 mentions.",
+        retrieved_at="2026-10-22T00:00:00Z",
+        published_at="2026-10-20T00:00:00Z",
+        platform="youtube",
+        region="US",
+        metric_name="mentions",
+        metric_value=120,
+        metric_unit="count",
+        evidence_kind="reported",
+        reliability="medium",
+        freshness="fresh",
+        corroboration="single_source",
+        limitations=["Provider metric definition has not been independently validated."],
+    )
+    assert item.metric_name == "mentions"
+    assert item.metric_value == 120
+    assert item.evidence_kind == "reported"
+    assert any("not been independently validated" in note for note in item.limitations)

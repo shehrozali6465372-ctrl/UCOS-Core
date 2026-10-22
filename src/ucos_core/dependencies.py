@@ -120,7 +120,7 @@ def probe_research_schema() -> ProbeResult:
 
 
 def probe_research_runtime_privileges() -> ProbeResult:
-    """Verify the runtime role can perform every database operation used by Agent 01."""
+    """Verify required grants and reject excessive table privileges in production."""
     database_url = _configured_url("DATABASE_URL")
     if not database_url:
         return ProbeResult(configured=False, available=False)
@@ -141,12 +141,45 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        ),
                        has_table_privilege(
                            current_user, 'public.ucos_research_scope_grants', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'TRIGGER'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'TRIGGER'
                        )"""
             ).fetchone()
-        return ProbeResult(
-            configured=True,
-            available=bool(privileges and all(privileges)),
-        )
+        if not privileges or len(privileges) != 14 or not all(privileges[:4]):
+            return ProbeResult(configured=True, available=False)
+        # Development can use an owner account; production must use the narrow
+        # runtime grant set rather than an owner/provisioner credential.
+        if production_environment() and any(privileges[4:]):
+            return ProbeResult(configured=True, available=False)
+        return ProbeResult(configured=True, available=True)
     except Exception:
         return ProbeResult(configured=True, available=False)
 

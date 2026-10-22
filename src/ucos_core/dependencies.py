@@ -178,6 +178,18 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        role.rolcreaterole,
                        role.rolreplication,
                        role.rolbypassrls,
+                       EXISTS (
+                           SELECT 1
+                           FROM pg_roles AS elevated
+                           WHERE (
+                               elevated.rolsuper
+                               OR elevated.rolcreatedb
+                               OR elevated.rolcreaterole
+                               OR elevated.rolreplication
+                               OR elevated.rolbypassrls
+                           )
+                           AND pg_has_role(current_user, elevated.oid, 'MEMBER')
+                       ),
                        has_table_privilege(
                            current_user, 'public.ucos_scope_provisioning_audit', 'SELECT'
                        ),
@@ -223,12 +235,12 @@ def probe_research_runtime_privileges() -> ProbeResult:
                    FROM pg_roles AS role
                    WHERE role.rolname = current_user"""
             ).fetchone()
-        if not privileges or len(privileges) != 34 or not all(privileges[:4]):
+        if not privileges or len(privileges) != 35 or not all(privileges[:4]):
             return ProbeResult(configured=True, available=False)
         # Development may use an owner account; production must use a narrow
         # runtime identity. This rejects table owners, provisioners, schema
         # creators, superusers, and roles with database/role/replication powers.
-        if production_environment() and any(privileges[4:21] + privileges[21:]):
+        if production_environment() and any(privileges[4:]):
             return ProbeResult(configured=True, available=False)
         return ProbeResult(configured=True, available=True)
     except Exception:

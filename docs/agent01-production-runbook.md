@@ -1,11 +1,11 @@
 # Agent 01 production protection runbook
 
-This runbook is an operator checklist, not authorization to mutate production. The owner selected a single-owner workflow; do not request a third-party reviewer by default. Automated review and CI are required engineering steps, but they do not constitute independent review. Keep PR #12 draft until production gates are complete. Never paste credentials, bearer tokens, database URLs, or provider keys into GitHub issues or chat.
+This runbook is an operator checklist, not authorization to mutate production. The owner selected a single-owner workflow; do not request a third-party reviewer by default. Automated review and CI are required engineering steps, but they do not constitute independent review. Current Agent 01 candidate is the stacked PR chain #29–#33; keep every PR draft/open/unmerged until production gates are complete. Never paste credentials, bearer tokens, database URLs, or provider keys into GitHub issues or chat.
 
 ## 0. Change-control gate
 
 - [ ] Obtain explicit approval from the production owner for the deployment window and migration.
-- [ ] Verify the canonical integration candidate [PR #12](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/12) is the exact code intended for deployment; perform focused owner-led review and check CI on the exact head. Do not claim an independent review occurred.
+- [ ] Verify the current candidate stack: [PR #29](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/29) integrates the release-candidate base, with [PR #30](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/30), [PR #31](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/31), [PR #32](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/32), and [PR #33](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/33) stacked on top. Perform focused owner-led review and check CI on the exact final head. Do not claim an independent review occurred.
 - [ ] Confirm all required CI checks pass on the exact commit to deploy.
 - [ ] Record the target commit, operator, maintenance window, rollback owner, and recovery procedure.
 - [ ] Verify a current database backup / restore point and that rollback steps have been tested or reviewed.
@@ -74,7 +74,7 @@ python -m ucos_core.provisioning --disable <TENANT_ID> <WORKSPACE_ID> <BRAND_ID>
 
 - [ ] Configure and verify GitHub branch rules for `main` using an authorized owner/admin interface before any production rollout. The GitHub branches API currently reports `protected=false` for both `main` and `agent-01/clean-main-integration`; required status checks and force-push/direct-write restrictions are therefore not shown as enabled in that snapshot.
 - [ ] The dedicated branch-protection endpoint returns 403 through the connected integration, so exact ruleset settings cannot be inspected there. Re-check them with owner/admin access and do not infer that protections are enabled.
-- [ ] Keep PR #12 draft/open/unmerged until the exact code and production change plan are approved, required CI is green, and all production gates above are complete.
+- [ ] Keep PRs #29–#33 draft/open/unmerged until the exact code and production change plan are approved, required CI is green, and all production gates above are complete.
 
 ## Current verified status
 
@@ -277,3 +277,14 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Subsequent exact-head code runs [#201](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39767975297) and [#202](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39767988388) passed after aligning citation URL validation in the Tavily adapter and `EvidenceItem` contract. Empty explicit ports and backslashes are rejected along with malformed/out-of-range ports, credentials, whitespace/control characters and unsupported schemes. These are syntax/authority controls, not DNS/redirect/egress SSRF protection.
 - A further regression test for an explicit empty evidence URL port was added in commit `cb4fbcfe4fcc357708cd29602e449a29a67e502e`. CI run [#203](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39768134227) is required on this exact head before treating the last test update as validated.
 - Keep the stacked PRs draft until current exact-head CI and the combined candidate review are complete. Production still NOT READY; do not deploy while live credentials/scope/runtime role/Render/recovery/branch-protection/persistence-replay gates are unverified.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (runtime privilege gate)
+
+- Exact-head CI run [#223](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39770665795) passed on code head `56ce50d5f9f265bcc22541f878a674769ee98538`: Ruff, P0 safety/PostgreSQL integration tests, Docker build, non-root runtime check and cleanup all passed.
+- Readiness now checks the actual `DATABASE_URL` role against the required research-run operations and scope-grant read access. In production it also fails closed if the role has destructive table grants, can create objects in `public`, or has elevated PostgreSQL role attributes (superuser, create database/role, replication or RLS bypass). This is a runtime configuration check, not a substitute for separately verifying secret ownership and deployed role identity.
+- Added regression cases for missing required grants and excessive production privileges; development-mode owner use remains allowed for local testing only.
+- The runbook's current candidate pointer is corrected from the stale historical PR #12 to the current stacked chain #29–#33. This documentation update creates a newer head and requires its own exact-head CI run.
+- Current branch head at the time of this checkpoint: `56ce50d5f9f265bcc22541f878a674769ee98538`; PR #33 remains draft/open/unmerged. Main remains unprotected on the last verified readback (`protected=false`) and unchanged at `d770512de3bf7523ff04885a671f82dfa93d952e`.
+- Production remains **NOT READY**: current Render/Neon readback, approved scope/actor, actual runtime secret/role, migration execution, restore/rollback drill, branch protection and authenticated persistence/replay are not verified. No production resource was modified.

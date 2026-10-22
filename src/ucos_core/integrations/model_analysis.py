@@ -1,6 +1,7 @@
 """OpenAI-compatible model adapter for evidence-grounded analysis."""
 
 import os
+
 import httpx
 
 from ucos_core.agents.research.contracts import EvidenceItem

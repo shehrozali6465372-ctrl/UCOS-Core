@@ -7,7 +7,7 @@ import pytest
 from ucos_core.dependencies import probe_research_runtime_privileges
 
 
-@pytest.mark.parametrize("altered_index", [None, *range(34)])
+@pytest.mark.parametrize("altered_index", [None, *range(35)])
 def test_runtime_privilege_probe_enforces_required_and_least_privilege_grants(
     monkeypatch, altered_index
 ):
@@ -18,7 +18,7 @@ def test_runtime_privilege_probe_enforces_required_and_least_privilege_grants(
     # Required: SELECT/INSERT/UPDATE on research runs and SELECT on scope grants.
     # Production also forbids destructive table grants, schema CREATE, and
     # elevated PostgreSQL role attributes.
-    privileges = [True, True, True, True] + [False] * 30
+    privileges = [True, True, True, True] + [False] * 31
     if altered_index is not None:
         privileges[altered_index] = altered_index >= 4
 
@@ -50,7 +50,7 @@ def test_development_can_use_owner_privileges(monkeypatch):
 
     connection = MagicMock()
     connection.__enter__.return_value = connection
-    connection.execute.return_value.fetchone.return_value = (True,) * 34
+    connection.execute.return_value.fetchone.return_value = (True,) * 35
 
     with patch("psycopg.connect", return_value=connection):
         result = probe_research_runtime_privileges()

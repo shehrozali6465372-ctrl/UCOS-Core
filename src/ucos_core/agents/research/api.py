@@ -64,7 +64,7 @@ def _configured_scope() -> tuple[str, str, str]:
     configured = tuple(os.getenv(name, "").strip() for name in names)
     if not all(configured):
         raise HTTPException(status_code=503, detail="research token scope is not configured")
-    return configured  # type: ignore[return-value]
+    return configured[0], configured[1], configured[2]
 
 
 def _authorize_configured_scope(request: ResearchRequest) -> None:

@@ -4,7 +4,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ucos_core.agents.research import api as research_api
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
+from ucos_core.agents.research.contracts import (
+    EvidenceItem,
+    ResearchRequest,
+    ResearchResponse,
+    ResearchTaskResponse,
+)
 from ucos_core.agents.research.service import (
     ResearchBusy,
     ResearchConflict,
@@ -281,3 +286,205 @@ def test_api_accepts_sufficient_length_token_and_exact_scope(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
+
+
+
+@pytest.mark.asyncio
+async def test_result_lookup_checks_authorization_before_reading() -> None:
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = False
+    service = ResearchService(source, analyzer, auth, repo)
+    with pytest.raises(ResearchForbidden):
+        await service.get_result("private-request", "t", "w", "b")
+    repo.get_result.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_result_lookup_fails_closed_when_repository_unavailable() -> None:
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = True
+    repo.get_result.side_effect = RuntimeError("database unavailable")
+    service = ResearchService(source, analyzer, auth, repo)
+    with pytest.raises(ResearchUnavailable):
+        await service.get_result("request-1", "tenant-1", "workspace-1", "brand-1")
+
+
+def test_api_get_result_returns_durable_task_status_for_configured_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.get_result.return_value = ResearchTaskResponse(
+        request_id="req-1",
+        correlation_id="corr-1",
+        status="SUCCEEDED",
+        analysis="Supported finding [1]",
+        evidence=[
+            EvidenceItem(
+                source="tavily",
+                title="Source",
+                url="https://example.com",
+                excerpt="Evidence",
+                retrieved_at="2026-10-22T00:00:00Z",
+            )
+        ],
+        created_at="2026-10-22T00:00:00Z",
+    )
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).get(
+        "/v1/agents/01/research/req-1",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "SUCCEEDED"
+    assert payload["evidence"][0]["url"] == "https://example.com"
+    service.get_result.assert_awaited_once_with(
+        "req-1", "tenant-1", "workspace-1", "brand-1"
+    )
+
+
+def test_api_get_result_hides_missing_or_out_of_scope_request_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.get_result.return_value = None
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).get(
+        "/v1/agents/01/research/other-scope-request",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "research request not found"
+
+
+def test_api_get_result_rejects_unauthenticated_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "research-test-secret-value-with-more-than-32-characters",
+    )
+    response = TestClient(app).get("/v1/agents/01/research/req-1")
+    assert response.status_code == 401
+
+
+def test_evidence_provenance_defaults_are_explicit_not_inferred() -> None:
+    item = EvidenceItem(
+        source="tavily",
+        title="Research result",
+        url="https://example.com/research",
+        excerpt="Observed evidence",
+        retrieved_at="2026-10-22T08:00:00+05:00",
+    )
+    assert item.published_at is None
+    assert item.updated_at is None
+    assert item.metric_value is None
+    assert item.evidence_kind == "unknown"
+    assert item.reliability == "unverified"
+    assert item.freshness == "unknown"
+    assert item.corroboration == "unknown"
+    assert item.retrieved_at.isoformat() == "2026-10-22T03:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "javascript:alert(1)",
+        "file:///etc/passwd",
+        "https://user:password@example.com/report",
+        "https://example.com/\nheader",
+    ],
+)
+def test_evidence_rejects_non_http_or_credential_bearing_urls(url: str) -> None:
+    with pytest.raises(ValueError):
+        EvidenceItem(
+            source="test",
+            title="Unsafe source",
+            url=url,
+            excerpt="source text",
+            retrieved_at="2026-10-22T00:00:00Z",
+        )
+
+
+def test_evidence_rejects_timezone_naive_timestamps() -> None:
+    with pytest.raises(ValueError):
+        EvidenceItem(
+            source="test",
+            title="Missing timezone",
+            url="https://example.com",
+            excerpt="source text",
+            retrieved_at="2026-10-22T00:00:00",
+        )
+
+
+def test_evidence_accepts_known_metadata_without_claiming_sales() -> None:
+    item = EvidenceItem(
+        source="approved-provider",
+        title="Trend report",
+        url="https://example.com/trends",
+        excerpt="The source reports 120 mentions.",
+        retrieved_at="2026-10-22T00:00:00Z",
+        published_at="2026-10-20T00:00:00Z",
+        platform="youtube",
+        region="US",
+        metric_name="mentions",
+        metric_value=120,
+        metric_unit="count",
+        evidence_kind="reported",
+        reliability="medium",
+        freshness="fresh",
+        corroboration="single_source",
+        limitations=["Provider metric definition has not been independently validated."],
+    )
+    assert item.metric_name == "mentions"
+    assert item.metric_value == 120
+    assert item.evidence_kind == "reported"
+    assert any("not been independently validated" in note for note in item.limitations)
+
+
+def test_capability_endpoint_requires_bearer_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "research-test-secret-value-with-more-than-32-characters",
+    )
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "owner-project")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "private-workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "owner-brand")
+    response = TestClient(app).get("/v1/agents/01/research/capabilities")
+    assert response.status_code == 401
+
+
+def test_capability_endpoint_reports_unintegrated_platforms_honestly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "owner-project")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "private-workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "owner-brand")
+    monkeypatch.setenv("TAVILY_API_KEY", "")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "")
+    response = TestClient(app).get(
+        "/v1/agents/01/research/capabilities",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    providers = {item["provider"]: item for item in payload["providers"]}
+    assert payload["deployment_model"] == "single_owner"
+    assert providers["tavily_general_web_search"]["status"] == "implemented"
+    assert providers["tavily_general_web_search"]["credential_status"] == "missing"
+    for platform in ("pinterest", "youtube", "facebook", "tiktok", "instagram"):
+        assert providers[platform]["status"] == "not_integrated"
+        assert providers[platform]["capabilities"] == []
+    assert providers["product_affiliate_programs"]["status"] == "not_integrated"

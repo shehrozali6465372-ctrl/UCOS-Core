@@ -162,6 +162,7 @@ async def test_model_adapter_bounds_completion_and_requests_token_limit(monkeypa
     [
         "https://example.com:bad-port/report",
         "https://example.com:99999/report",
+        "https://example.com:/path",
         "https://example.com/path with spaces",
     ],
 )
@@ -191,6 +192,7 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
                 "results": [
                     {"url": "https://example.com:bad-port/path", "title": "bad", "content": "x"},
                     {"url": "https://example.com:99999/path", "title": "bad", "content": "x"},
+                    {"url": "https://example.com:/path", "title": "bad", "content": "x"},
                     {"url": "https://example.com/path with spaces", "title": "bad", "content": "x"},
                     {
                         "url": "https://user:password@example.com/path",

@@ -59,14 +59,19 @@ class EvidenceItem(BaseModel):
         try:
             parsed = urlsplit(value)
             hostname = parsed.hostname
+            port = parsed.port
+            authority = parsed.netloc.rsplit("@", maxsplit=1)[-1]
             valid = (
                 parsed.scheme in {"https", "http"}
                 and bool(hostname)
                 and parsed.username is None
                 and parsed.password is None
-                and not any(ord(char) < 32 for char in value)
+                and not any(ord(char) < 32 or ord(char) == 127 for char in value)
                 and not any(char.isspace() for char in value)
-                and parsed.port != 0
+                and "\\" not in value
+                and not authority.endswith(":")
+                and not authority.startswith(":")
+                and port != 0
             )
             # Invalid port syntax raises ValueError on parsed.port; reject it.
         except ValueError:

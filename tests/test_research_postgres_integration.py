@@ -154,3 +154,24 @@ async def test_release_expires_only_the_current_generation(repository):
     with pytest.raises(ResearchRequestInProgress):
         await repository.claim(req)
     await repository.save(req, retry_generation, "NO_RESULTS", "", [])
+
+
+
+@pytest.mark.asyncio
+async def test_get_result_returns_only_exact_scope(repository):
+    req = request()
+    generation = await repository.claim(req)
+    await repository.save(req, generation, "SUCCEEDED", "stored analysis", [])
+
+    found = await repository.get_result(
+        req.request_id, req.tenant_id, req.workspace_id, req.brand_id
+    )
+    assert found is not None
+    assert found.status == "SUCCEEDED"
+    assert found.analysis == "stored analysis"
+    assert found.persisted is True
+
+    hidden = await repository.get_result(
+        req.request_id, "different-tenant", req.workspace_id, req.brand_id
+    )
+    assert hidden is None

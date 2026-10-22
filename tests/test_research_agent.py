@@ -4,7 +4,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ucos_core.agents.research import api as research_api
-from ucos_core.agents.research.contracts import EvidenceItem, ResearchRequest, ResearchResponse
+from ucos_core.agents.research.contracts import (
+    EvidenceItem,
+    ResearchRequest,
+    ResearchResponse,
+    ResearchTaskResponse,
+)
 from ucos_core.agents.research.service import (
     ResearchBusy,
     ResearchConflict,
@@ -281,3 +286,93 @@ def test_api_accepts_sufficient_length_token_and_exact_scope(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
+
+
+
+@pytest.mark.asyncio
+async def test_result_lookup_checks_authorization_before_reading() -> None:
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = False
+    service = ResearchService(source, analyzer, auth, repo)
+    with pytest.raises(ResearchForbidden):
+        await service.get_result("private-request", "t", "w", "b")
+    repo.get_result.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_result_lookup_fails_closed_when_repository_unavailable() -> None:
+    source, analyzer, auth, repo = (AsyncMock() for _ in range(4))
+    auth.authorize.return_value = True
+    repo.get_result.side_effect = RuntimeError("database unavailable")
+    service = ResearchService(source, analyzer, auth, repo)
+    with pytest.raises(ResearchUnavailable):
+        await service.get_result("request-1", "tenant-1", "workspace-1", "brand-1")
+
+
+def test_api_get_result_returns_durable_task_status_for_configured_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.get_result.return_value = ResearchTaskResponse(
+        request_id="req-1",
+        correlation_id="corr-1",
+        status="SUCCEEDED",
+        analysis="Supported finding [1]",
+        evidence=[
+            EvidenceItem(
+                source="tavily",
+                title="Source",
+                url="https://example.com",
+                excerpt="Evidence",
+                retrieved_at="2026-10-22T00:00:00Z",
+            )
+        ],
+        created_at="2026-10-22T00:00:00Z",
+    )
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).get(
+        "/v1/agents/01/research/req-1",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "SUCCEEDED"
+    assert payload["evidence"][0]["url"] == "https://example.com"
+    service.get_result.assert_awaited_once_with(
+        "req-1", "tenant-1", "workspace-1", "brand-1"
+    )
+
+
+def test_api_get_result_hides_missing_or_out_of_scope_request_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace-1")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand-1")
+    service = AsyncMock()
+    service.get_result.return_value = None
+    monkeypatch.setattr(research_api, "_service", service)
+    response = TestClient(app).get(
+        "/v1/agents/01/research/other-scope-request",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "research request not found"
+
+
+def test_api_get_result_rejects_unauthenticated_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "research-test-secret-value-with-more-than-32-characters",
+    )
+    response = TestClient(app).get("/v1/agents/01/research/req-1")
+    assert response.status_code == 401

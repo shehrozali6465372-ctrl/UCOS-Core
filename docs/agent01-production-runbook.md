@@ -1,11 +1,11 @@
 # Agent 01 production protection runbook
 
-This runbook is an operator checklist, not authorization to mutate production. The owner selected a single-owner workflow; do not request a third-party reviewer by default. Automated review and CI are required engineering steps, but they do not constitute independent review. Current Agent 01 candidate is the stacked PR chain #29–#33; keep every PR draft/open/unmerged until production gates are complete. Never paste credentials, bearer tokens, database URLs, or provider keys into GitHub issues or chat.
+This runbook is an operator checklist, not authorization to mutate production. The owner selected a single-owner workflow; do not request a third-party reviewer by default. Automated review and CI are required engineering steps, but they do not constitute independent review. Current Agent 01 candidate is the full draft-to-main PR #34, backed by focused stacked PRs #29–#33; keep every PR draft/open/unmerged until production gates are complete. Never paste credentials, bearer tokens, database URLs, or provider keys into GitHub issues or chat.
 
 ## 0. Change-control gate
 
 - [ ] Obtain explicit approval from the production owner for the deployment window and migration.
-- [ ] Verify the current candidate stack: [PR #29](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/29) integrates the release-candidate base, with [PR #30](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/30), [PR #31](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/31), [PR #32](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/32), and [PR #33](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/33) stacked on top. Perform focused owner-led review and check CI on the exact final head. Do not claim an independent review occurred.
+- [ ] Review the full direct-to-main candidate [PR #34](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/34) against `main` as the complete diff, and cross-check the focused stack [PR #29](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/29) → [#30](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/30) → [#31](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/31) → [#32](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/32) → [#33](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/33). Perform focused owner-led review and check CI on the exact final head. Do not claim an independent review occurred.
 - [ ] Confirm all required CI checks pass on the exact commit to deploy.
 - [ ] Record the target commit, operator, maintenance window, rollback owner, and recovery procedure.
 - [ ] Verify a current database backup / restore point and that rollback steps have been tested or reviewed.
@@ -304,3 +304,12 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Further privilege review found that checking only the login role's own PostgreSQL attributes is insufficient if it inherits membership in an elevated role. The production readiness probe now checks effective membership in roles with superuser, CREATEDB, CREATEROLE, replication, or RLS-bypass attributes and fails closed if any such membership exists.
 - The runtime privilege regression matrix includes this new membership result. Exact-head CI is required on the latest code/test changes; earlier run #227 validated the prior head only.
 - No database role, grant, production setting, or deployment was changed. This is a readiness guard and does not replace operator verification of actual production role membership.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (single mainline review surface)
+
+- Opened draft [PR #34](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/34) from `agent-01/model-prompt-newlines` directly to `main` so the full 125-commit, 46-file candidate can be reviewed as one mainline diff. It is draft/open/unmerged; this is not a merge or deployment.
+- Exact code head `3c305328e37da24d31ea0cb7793192e38aabcf06` passed CI run [#231](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772065897): Ruff, PostgreSQL-backed safety/integration tests, Docker build, non-root runtime check, and cleanup.
+- PR #34 currently reports mergeable, but the repository's `main` branch protection is disabled. Do not treat mergeability as approval or release readiness. The focused PRs #29–#33 remain open/draft/unmerged.
+- Production still NOT READY pending authorized Render/Neon readback, approved scope/actor, runtime/provisioning role separation and secret verification, migration and restore/rollback validation, branch protection, and live authenticated persistence/replay verification.

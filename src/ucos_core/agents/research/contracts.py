@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Literal
-from urllib.parse import urlsplit
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ucos_core.agents.research.evidence_url import is_valid_evidence_url
 
 
 class ResearchRequest(BaseModel):
@@ -56,27 +56,7 @@ class EvidenceItem(BaseModel):
     @classmethod
     def validate_http_url(cls, value: str) -> str:
         """Validate evidence URL syntax; this is not a network-level SSRF defense."""
-        try:
-            parsed = urlsplit(value)
-            hostname = parsed.hostname
-            port = parsed.port
-            authority = parsed.netloc.rsplit("@", maxsplit=1)[-1]
-            valid = (
-                parsed.scheme in {"https", "http"}
-                and bool(hostname)
-                and parsed.username is None
-                and parsed.password is None
-                and not any(ord(char) < 32 or ord(char) == 127 for char in value)
-                and not any(char.isspace() for char in value)
-                and "\\" not in value
-                and not authority.endswith(":")
-                and not authority.startswith(":")
-                and port != 0
-            )
-            # Invalid port syntax raises ValueError on parsed.port; reject it.
-        except ValueError:
-            valid = False
-        if not valid:
+        if not is_valid_evidence_url(value):
             raise ValueError(
                 "evidence URL must be valid HTTP(S) without embedded credentials"
             )

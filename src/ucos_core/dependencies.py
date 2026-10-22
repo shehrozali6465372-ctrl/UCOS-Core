@@ -153,9 +153,12 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     local_http = parsed_model_url.scheme == "http" and parsed_model_url.hostname in {
         "localhost", "127.0.0.1", "::1"
     }
+    # A loopback HTTP endpoint is a development-only escape hatch. Production
+    # readiness must reject it even if the hostname is local.
+    allow_local_http = local_http and not production_environment()
     analysis_endpoint_safe = bool(
         parsed_model_url.hostname
-        and (parsed_model_url.scheme == "https" or local_http)
+        and (parsed_model_url.scheme == "https" or allow_local_http)
         and parsed_model_url.username is None
         and parsed_model_url.password is None
         and not parsed_model_url.query

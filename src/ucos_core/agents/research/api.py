@@ -7,6 +7,10 @@ import secrets
 from fastapi import APIRouter, Header, HTTPException
 
 from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
+from ucos_core.agents.research.capabilities import (
+    AgentCapabilityResponse,
+    build_capability_catalog,
+)
 from ucos_core.agents.research.service import (
     ResearchBusy,
     ResearchConflict,
@@ -68,6 +72,22 @@ def _authorize_configured_scope(request: ResearchRequest) -> None:
     )
     if not all(matches):
         raise HTTPException(status_code=403, detail="request is outside configured token scope")
+
+
+@router.get("/capabilities", response_model=AgentCapabilityResponse)
+async def capabilities(
+    authorization: str | None = Header(default=None),
+) -> AgentCapabilityResponse:
+    """Expose actual integrations and explicitly mark unsupported providers."""
+    _authenticate(authorization)
+    names = (
+        "UCOS_RESEARCH_SCOPE_TENANT_ID",
+        "UCOS_RESEARCH_SCOPE_WORKSPACE_ID",
+        "UCOS_RESEARCH_SCOPE_BRAND_ID",
+    )
+    if not all(os.getenv(name, "").strip() for name in names):
+        raise HTTPException(status_code=503, detail="research token scope is not configured")
+    return build_capability_catalog()
 
 
 @router.post("", response_model=ResearchResponse)

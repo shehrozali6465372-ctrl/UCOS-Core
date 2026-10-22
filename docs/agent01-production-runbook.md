@@ -321,3 +321,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - A contract review found that `ResearchResponse.persisted` defaulted to `true`, which could falsely assert durable persistence when a response object was constructed without explicit confirmation. Both `ResearchResponse` and `ResearchTaskResponse` now default `persisted=false`; the service sets true only after repository save succeeds, and PostgreSQL-backed replay/read paths set true after retrieving stored rows.
 - Regression coverage asserts both model defaults are false and mocked persisted rows opt in explicitly. Exact-head CI is running on `1eabed43c566f43845550e99384f5310cf21da80`: [run #242](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772743236). The latest code head must remain green before this increment is considered validated.
 - This changes response truth semantics only; no production database or service was touched.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (provider response memory bound)
+
+- Tavily retrieval now streams the HTTP response and stops reading once the response exceeds 1 MiB, before JSON parsing or evidence-object construction. This bounds provider response-body processing and avoids buffering an unbounded response; provider errors and malformed JSON fail closed without returning provider bodies.
+- Added a MockTransport regression test with a response larger than the cap. The code/test head is `76ee497c9bdd78b04d09ccc08b7c7c732b9c6509`; exact-head CI runs [#247](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772968038) and [#248](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772971042) are running for the focused and direct-to-main PRs.
+- This is a provider response-size bound, not a total process memory limit or an SSRF boundary. No production provider request or production configuration change was made.

@@ -27,6 +27,12 @@ This runbook is an operator checklist, not authorization to mutate production. T
 - [ ] Verify `ucos_research_scope_grants`, `ucos_scope_provisioning_audit`, and `ucos_scope_provisioning_requests` exist.
 - [ ] Do not create a scope until the production owner approves the exact tenant/workspace/brand ownership and actor identity.
 
+## 3. Single-owner project scope (not customer tenancy)
+
+UCOS is operated as one private project for its owner. Do not implement customer onboarding, tenant administration, or multi-customer SaaS behavior as a release requirement unless the owner changes scope. The current database/API still use tenant/workspace/brand identifiers as an internal authorization tuple; these identifiers do not imply that UCOS serves multiple customers. Do not remove or rename those fields ad hoc: they are part of the current request contract, grant checks, idempotency key validation, and persisted schema.
+
+For initial setup, the owner does not need to invent or provide UUIDs. After the owner approves the provisioning action and the operator identity is available in the approved environment, the provisioning command generates the internal tuple and writes an audit event. Record the generated tuple only in the approved deployment record and configure it directly in the secret manager. Never expose secrets. A future schema simplification to a single project identifier should be a separate reviewed migration with compatibility tests and rollback notes; it is not required to treat this as a single-owner deployment today.
+
 ## 3. Scope provisioning
 
 Run the operator command from an authorized environment only after the preceding approval and migration checks. Supply `UCOS_PROVISIONING_DATABASE_URL` and `UCOS_PROVISIONING_ACTOR` via the approved secret mechanism. Then run:
@@ -190,3 +196,27 @@ None. No production migration, scope/grant write, role creation, secret update, 
 
 - Neon snapshot inventory currently returns `snap-falling-snow-azcy9onf`, named `ucos-core-pre-production-migration-2026-10-20`, for production branch `br-dark-pond-azjzxzmd`. Recorded expiry: 2026-11-03 00:00 UTC.
 - This establishes that a snapshot record exists; **a restore/rollback drill has not been performed or verified**. Before production migrations or deployment, recheck snapshot status/expiry, verify that it is restorable, and document the exact restore/rollback steps.
+
+
+## Latest continuation checkpoint — 2026-10-22
+
+### Single-owner scope and exact-head CI
+
+- UCOS is a private, single-owner project. Multi-customer onboarding is not a release requirement. Tenant/workspace/brand IDs are retained only as current internal authorization/schema fields until a deliberate, separately reviewed compatibility migration replaces them.
+- PR #23 (single-owner scope clarification) exact head: `204968049f14e77d19e699d34c3bd077dca70db5`. GitHub Actions CI run #154 completed successfully on that exact head. PR remains draft/open/unmerged; it changes this runbook only.
+- PR #20 (Agent 01 auth hardening) and PR #22 (CEO-owned learning architecture boundary) remain draft/open/unmerged in the current GitHub readback. Their CI must be checked on the actual integration candidate before release; previously passing runs do not attest to a different combined commit.
+
+### Architecture coverage — code review, not live proof
+
+- Current research contract is synchronous: `POST /v1/agents/01/research` returns only `SUCCEEDED` or `NO_RESULTS`; the documented broader lifecycle (accepted/running/partial/failed/cancelled, task polling, report retrieval and follow-ups) is not demonstrated by this endpoint contract.
+- Current evidence schema contains source, title, URL, excerpt and retrieval timestamp. It does not expose the full architecture's proposed published/updated times, platform/region, normalized metric/unit, reliability/freshness score, corroboration/conflict state and source limitations as typed fields.
+- Runtime configuration currently wires a Tavily research source and an OpenAI-compatible analyzer. Separate, explicitly capability-declaring Pinterest, YouTube, Facebook, TikTok, Instagram and product/affiliate adapters have not been verified in this integration code snapshot. Do not claim those integrations are implemented or that private platform metrics are available.
+- CEO/Super-Intelligence must own cross-agent learning. Agent 01 may return traceable outcome evidence, but must not update its own policy/weights based on conversions, revenue, or engagement.
+
+These are implementation gaps to resolve through isolated PRs and tests; no speculative platform adapter, mock data, self-learning loop, or production write should be introduced to make a checklist appear complete.
+
+### Production gate status — verify again before rollout
+
+The latest previously recorded production snapshot lists no enabled research scope grants or research runs, and only the schema-owner PostgreSQL role in the role inventory. Render's recorded configuration tracks `agent-01/production-v1`, has public ingress `0.0.0.0/0`, and has no readiness health-check path; live endpoint behavior and secret values remain unverified. A manual Neon snapshot record exists through 2026-11-03 UTC, but no restore drill is verified and automated snapshot scheduling was not available. Treat these as last-recorded observations, not proof of the current live state: re-read each immediately before an approved release.
+
+**No release claim:** CI success on a documentation-only PR does not establish Agent 01 production readiness. Do not deploy, change secrets, alter ingress, create production roles/grants, run paid live provider calls, or change the production database without a verified target, a rollback plan, and the required action-specific owner authorization.

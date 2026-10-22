@@ -2,8 +2,6 @@
 
 import os
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
-
 import httpx
 
 from ucos_core.agents.research.contracts import EvidenceItem
@@ -12,7 +10,10 @@ from ucos_core.agents.research.evidence_url import is_valid_evidence_url
 
 def _candidate_evidence_url(value: object) -> str | None:
     """Preserve only citations that satisfy the shared evidence URL contract."""
+    if not isinstance(value, str):
+        return None
     return value if is_valid_evidence_url(value) else None
+
 
 class TavilyResearchSource:
     def __init__(self, api_key: str | None = None) -> None:

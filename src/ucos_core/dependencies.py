@@ -120,7 +120,7 @@ def probe_research_schema() -> ProbeResult:
 
 
 def probe_research_runtime_privileges() -> ProbeResult:
-    """Verify required grants and reject excessive table privileges in production."""
+    """Verify required grants and production least-privilege role settings."""
     database_url = _configured_url("DATABASE_URL")
     if not database_url:
         return ProbeResult(configured=False, available=False)
@@ -171,12 +171,21 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        ),
                        has_table_privilege(
                            current_user, 'public.ucos_research_scope_grants', 'TRIGGER'
-                       )"""
+                       ),
+                       has_schema_privilege(current_user, 'public', 'CREATE'),
+                       role.rolsuper,
+                       role.rolcreatedb,
+                       role.rolcreaterole,
+                       role.rolreplication,
+                       role.rolbypassrls
+                   FROM pg_roles AS role
+                   WHERE role.rolname = current_user"""
             ).fetchone()
-        if not privileges or len(privileges) != 14 or not all(privileges[:4]):
+        if not privileges or len(privileges) != 20 or not all(privileges[:4]):
             return ProbeResult(configured=True, available=False)
-        # Development can use an owner account; production must use the narrow
-        # runtime grant set rather than an owner/provisioner credential.
+        # Development may use an owner account; production must use a narrow
+        # runtime identity. This rejects table owners, provisioners, schema
+        # creators, superusers, and roles with database/role/replication powers.
         if production_environment() and any(privileges[4:]):
             return ProbeResult(configured=True, available=False)
         return ProbeResult(configured=True, available=True)

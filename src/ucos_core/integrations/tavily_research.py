@@ -1,5 +1,6 @@
 """Tavily evidence retrieval adapter with strict timeouts and input bounds."""
 
+import json
 import os
 from datetime import UTC, datetime
 
@@ -23,8 +24,10 @@ class TavilyResearchSource:
     async def search(self, query: str, max_results: int) -> list[EvidenceItem]:
         if not self._api_key:
             raise RuntimeError("TAVILY_API_KEY is not configured")
+        max_response_bytes = 1_048_576
         async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=5.0)) as client:
-            response = await client.post(
+            async with client.stream(
+                "POST",
                 "https://api.tavily.com/search",
                 headers={"Authorization": f"Bearer {self._api_key}"},
                 json={
@@ -32,9 +35,17 @@ class TavilyResearchSource:
                     "max_results": max_results,
                     "search_depth": "advanced",
                 },
-            )
-            response.raise_for_status()
-            payload = response.json()
+            ) as response:
+                response.raise_for_status()
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    if len(body) + len(chunk) > max_response_bytes:
+                        raise RuntimeError("Tavily response exceeded the 1 MiB size limit")
+                    body.extend(chunk)
+        try:
+            payload = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise RuntimeError("Tavily returned an invalid JSON response") from exc
         if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
             raise RuntimeError("Tavily returned an invalid response shape")
 

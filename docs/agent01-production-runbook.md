@@ -313,3 +313,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Exact code head `3c305328e37da24d31ea0cb7793192e38aabcf06` passed CI run [#231](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772065897): Ruff, PostgreSQL-backed safety/integration tests, Docker build, non-root runtime check, and cleanup.
 - PR #34 currently reports mergeable, but the repository's `main` branch protection is disabled. Do not treat mergeability as approval or release readiness. The focused PRs #29–#33 remain open/draft/unmerged.
 - Production still NOT READY pending authorized Render/Neon readback, approved scope/actor, runtime/provisioning role separation and secret verification, migration and restore/rollback validation, branch protection, and live authenticated persistence/replay verification.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (persistence truth contract)
+
+- A contract review found that `ResearchResponse.persisted` defaulted to `true`, which could falsely assert durable persistence when a response object was constructed without explicit confirmation. Both `ResearchResponse` and `ResearchTaskResponse` now default `persisted=false`; the service sets true only after repository save succeeds, and PostgreSQL-backed replay/read paths set true after retrieving stored rows.
+- Regression coverage asserts both model defaults are false and mocked persisted rows opt in explicitly. Exact-head CI is running on `1eabed43c566f43845550e99384f5310cf21da80`: [run #242](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772743236). The latest code head must remain green before this increment is considered validated.
+- This changes response truth semantics only; no production database or service was touched.

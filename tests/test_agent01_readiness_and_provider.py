@@ -174,7 +174,11 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
                     {"url": "https://example.com:bad-port/path", "title": "bad", "content": "x"},
                     {"url": "https://example.com:99999/path", "title": "bad", "content": "x"},
                     {"url": "https://example.com/path with spaces", "title": "bad", "content": "x"},
-                    {"url": "https://user:password@example.com/path", "title": "bad", "content": "x"},
+                    {
+                        "url": "https://user:password@example.com/path",
+                        "title": "bad",
+                        "content": "x",
+                    },
                     {"url": "https://example.com/good", "title": "good", "content": "safe"},
                 ]
             },

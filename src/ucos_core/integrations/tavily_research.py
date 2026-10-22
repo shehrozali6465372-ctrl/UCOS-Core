@@ -7,38 +7,12 @@ from urllib.parse import urlsplit
 import httpx
 
 from ucos_core.agents.research.contracts import EvidenceItem
+from ucos_core.agents.research.evidence_url import is_valid_evidence_url
 
 
 def _candidate_evidence_url(value: object) -> str | None:
-    """Reject malformed citation URLs before preserving them as evidence.
-
-    This is syntax/authority hygiene only. It is not an SSRF boundary because
-    this adapter does not dereference returned URLs; any future fetcher must
-    separately enforce DNS/IP, redirect and egress policy.
-    """
-    if not isinstance(value, str) or not value or len(value) > 2048:
-        return None
-    if any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value) or "\\" in value:
-        return None
-    try:
-        parsed = urlsplit(value)
-        hostname = parsed.hostname
-        port = parsed.port
-        authority = parsed.netloc.rsplit("@", maxsplit=1)[-1]
-        if authority.endswith(":") or authority.startswith(":"):
-            return None
-        if (
-            parsed.scheme not in {"https", "http"}
-            or not hostname
-            or parsed.username is not None
-            or parsed.password is not None
-            or port == 0
-        ):
-            return None
-    except ValueError:
-        return None
-    return value
-
+    """Preserve only citations that satisfy the shared evidence URL contract."""
+    return value if is_valid_evidence_url(value) else None
 
 class TavilyResearchSource:
     def __init__(self, api_key: str | None = None) -> None:

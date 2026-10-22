@@ -1,12 +1,10 @@
 """OpenAI-compatible model adapter for evidence-grounded analysis."""
 
 import os
-from urllib.parse import urlsplit
-
 import httpx
 
 from ucos_core.agents.research.contracts import EvidenceItem
-from ucos_core.dependencies import production_environment
+from ucos_core.integrations.endpoint_policy import is_safe_analysis_base_url
 
 
 class OpenAICompatibleAnalyzer:
@@ -14,26 +12,10 @@ class OpenAICompatibleAnalyzer:
         self._base_url = os.getenv(
             "ANALYSIS_BASE_URL", "https://api.openai.com/v1"
         ).strip().rstrip("/")
-        try:
-            parsed = urlsplit(self._base_url)
-            hostname = parsed.hostname
-            port = parsed.port
-        except ValueError as exc:
-            raise RuntimeError(
-                "ANALYSIS_BASE_URL must be HTTPS in production (loopback HTTP only in development)"
-            ) from exc
-        local_http = parsed.scheme == "http" and hostname in {
-            "localhost", "127.0.0.1", "::1"
-        }
-        allow_local_http = local_http and not production_environment()
-        if (
-            (parsed.scheme != "https" and not allow_local_http)
-            or not hostname
-            or port == 0
-            or parsed.username is not None
-            or parsed.password is not None
-            or parsed.query
-            or parsed.fragment
+        if not is_safe_analysis_base_url(
+            self._base_url,
+            production=os.getenv("UCOS_ENV", "development").strip().casefold()
+            == "production",
         ):
             raise RuntimeError(
                 "ANALYSIS_BASE_URL must be HTTPS in production (loopback HTTP only in development)"

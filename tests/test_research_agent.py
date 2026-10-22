@@ -28,6 +28,26 @@ def request() -> ResearchRequest:
     )
 
 
+def test_persistence_claim_defaults_to_false_until_confirmed() -> None:
+    response = ResearchResponse(
+        request_id="req-1",
+        correlation_id="corr-1",
+        status="NO_RESULTS",
+        analysis="",
+        evidence=[],
+    )
+    task = ResearchTaskResponse(
+        request_id="req-1",
+        correlation_id="corr-1",
+        status="IN_PROGRESS",
+        created_at="2026-10-22T00:00:00Z",
+    )
+
+    assert response.persisted is False
+    assert task.persisted is False
+
+
+
 @pytest.mark.asyncio
 async def test_research_persists_provenance_before_success() -> None:
     item = EvidenceItem(source="tavily", title="Report", url="https://example.com",

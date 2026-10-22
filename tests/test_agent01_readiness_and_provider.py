@@ -195,6 +195,23 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
     assert evidence[0].url == "https://example.com/good"
 
 
+def test_model_adapter_rejects_loopback_http_in_production(monkeypatch):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "production")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "http://127.0.0.1:1234/v1")
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
+        OpenAICompatibleAnalyzer()
+
+
+def test_model_adapter_allows_loopback_http_outside_production(monkeypatch):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "development")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "http://127.0.0.1:1234/v1")
+    OpenAICompatibleAnalyzer()
+
+
 @pytest.mark.parametrize(
     "analysis_url",
     [
@@ -218,6 +235,30 @@ def test_readiness_fails_closed_for_unsafe_analysis_endpoint(
     monkeypatch.setenv("ANALYSIS_API_KEY", "model-test")
     monkeypatch.setenv("ANALYSIS_MODEL", "test-model")
     monkeypatch.setenv("ANALYSIS_BASE_URL", analysis_url)
+    with (
+        patch("ucos_core.dependencies.probe_postgres", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
+        patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+    ):
+        ready, components = required_dependencies_ready()
+    assert ready is False
+    assert components["analysis_model"] is False
+
+
+def test_readiness_fails_for_loopback_http_in_production(monkeypatch):
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "agent01-test-token-0123456789-abcdef-0123456789",
+    )
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "tenant")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "brand")
+    monkeypatch.setenv("TAVILY_API_KEY", "tavily-test")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "model-test")
+    monkeypatch.setenv("ANALYSIS_MODEL", "test-model")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "http://127.0.0.1:1234/v1")
+    monkeypatch.setenv("UCOS_ENV", "production")
     with (
         patch("ucos_core.dependencies.probe_postgres", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),

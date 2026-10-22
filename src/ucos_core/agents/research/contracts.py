@@ -119,4 +119,4 @@ class ResearchTaskResponse(BaseModel):
     analysis: str = ""
     evidence: list[EvidenceItem] = Field(default_factory=list)
     created_at: datetime
-    persisted: bool = True
+    persisted: bool = False

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -36,4 +37,19 @@ class ResearchResponse(BaseModel):
     status: Literal["SUCCEEDED", "NO_RESULTS"]
     analysis: str
     evidence: list[EvidenceItem]
+    persisted: bool = True
+
+
+class ResearchTaskResponse(BaseModel):
+    """Scope-bound view of a durable research request, including in-progress work."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    request_id: str
+    correlation_id: str
+    status: Literal["IN_PROGRESS", "SUCCEEDED", "NO_RESULTS"]
+    analysis: str = ""
+    evidence: list[EvidenceItem] = Field(default_factory=list)
+    created_at: datetime
     persisted: bool = True

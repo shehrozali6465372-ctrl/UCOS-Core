@@ -334,4 +334,8 @@ async def test_model_adapter_sends_evidence_with_real_newlines(monkeypatch):
     user_content = captured["messages"][1]["content"]
     assert result == "grounded"
     assert "\\n" not in user_content
-    assert "\n\nEvidence:\n[1] A title\nURL: https://example.com/article\nEvidence: Evidence excerpt" in user_content
+    expected_prompt = (
+        "\n\nEvidence:\n[1] A title\nURL: https://example.com/article"
+        "\nEvidence: Evidence excerpt"
+    )
+    assert expected_prompt in user_content

@@ -218,7 +218,7 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
         "https://analysis.example:99999/v1",
         "https://analysis.example:0/v1",
         "https://analysis.example/path with spaces",
-        "https://analysis.example/path\\twith-control",
+        "https://analysis.example/path\twith-control",
     ],
 )
 def test_model_adapter_rejects_malformed_endpoint_urls(monkeypatch, analysis_url):

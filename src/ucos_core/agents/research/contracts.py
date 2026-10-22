@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ucos_core.agents.research.evidence_url import is_valid_evidence_url

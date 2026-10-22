@@ -39,5 +39,7 @@ def is_safe_analysis_base_url(value: str, *, production: bool) -> bool:
         and parsed.password is None
         and not parsed.query
         and not parsed.fragment
+        and "?" not in value
+        and "#" not in value
         and port != 0
     )

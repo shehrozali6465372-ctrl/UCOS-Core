@@ -288,3 +288,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - The runbook's current candidate pointer is corrected from the stale historical PR #12 to the current stacked chain #29–#33. This documentation update creates a newer head and requires its own exact-head CI run.
 - Current branch head at the time of this checkpoint: `56ce50d5f9f265bcc22541f878a674769ee98538`; PR #33 remains draft/open/unmerged. Main remains unprotected on the last verified readback (`protected=false`) and unchanged at `d770512de3bf7523ff04885a671f82dfa93d952e`.
 - Production remains **NOT READY**: current Render/Neon readback, approved scope/actor, actual runtime secret/role, migration execution, restore/rollback drill, branch protection and authenticated persistence/replay are not verified. No production resource was modified.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (runtime DB boundary tightening)
+
+- Production readiness now checks not only the runtime's required read/write grants on `ucos_research_runs` and read access to `ucos_research_scope_grants`, but also rejects any access to `ucos_scope_provisioning_audit` or `ucos_scope_provisioning_requests`. The runtime role must not be able to create/modify/erase provisioning records; provisioning uses a separate operator identity.
+- The regression matrix now toggles every required/forbidden privilege bit, including the provisioning tables. Exact-head CI is running for the code/test head `fa93053df295be532585196de6e011e042945343`: [run #226](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39771674806). Earlier run #224 passed before this additional hardening and is not evidence for this latest change.
+- No production migration, grant, role, secret, Render setting or deployment was changed. This check intentionally makes readiness fail closed if required migrations/tables are absent or runtime grants are broader than approved.

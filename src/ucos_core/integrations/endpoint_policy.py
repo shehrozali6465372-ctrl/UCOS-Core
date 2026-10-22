@@ -9,12 +9,21 @@ def is_safe_analysis_base_url(value: str, *, production: bool) -> bool:
     This validates URL syntax and transport policy only. It does not validate DNS
     resolution or establish a network-level SSRF boundary.
     """
-    if not value or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value):
+    if (
+        not value
+        or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value)
+        or "\\" in value
+    ):
         return False
     try:
         parsed = urlsplit(value)
         hostname = parsed.hostname
         port = parsed.port
+        # Explicitly reject malformed authority forms that urlsplit may parse
+        # without raising (for example, an empty or non-numeric port suffix).
+        authority = parsed.netloc.rsplit("@", maxsplit=1)[-1]
+        if authority.endswith(":") or authority.startswith(":"):
+            return False
     except ValueError:
         return False
 

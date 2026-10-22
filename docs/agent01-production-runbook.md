@@ -345,3 +345,10 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - The shared model endpoint policy now rejects explicit empty query/fragment delimiters (`?` and `#`) as well as non-empty query/fragment components. This closes a parser-normalization edge case where `urlsplit` reports an empty query/fragment even though the raw URL still contains the delimiter.
 - Added regression cases for `https://example.com/v1?` and `https://example.com/v1#`. Exact-head CI is required for the latest endpoint-policy/test commit; previous runs validate earlier heads only.
 - This remains endpoint configuration validation, not DNS/IP or network-egress SSRF enforcement.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (real PostgreSQL privilege-probe integration)
+
+- Added an integration test that executes the actual runtime privilege SQL against the ephemeral PostgreSQL instance used by CI. It asserts an owner-role connection is accepted in development mode but fails the production least-privilege gate. This complements mocked per-privilege regression coverage by validating SQL syntax, table inventory, and privilege-query shape against real PostgreSQL.
+- Latest code/test head: `dc711f878b44d50b449ce6667fe239ec4ba882f4`. Exact-head CI is required before considering this increment validated.

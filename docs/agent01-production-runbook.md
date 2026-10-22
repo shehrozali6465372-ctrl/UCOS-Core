@@ -240,3 +240,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - First CI attempt #176 ([run](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39763900136)) failed at Ruff only: one assertion exceeded the configured 100-character line limit. Tests, Docker build, and non-root verification were skipped by the workflow after lint failed.
 - Corrected the assertion formatting in commit `95769e59c9c63725a7e8b732888056a63297e4f2`. As of this checkpoint, GitHub has not returned a workflow run or commit status for that corrected exact head; CI remains pending/unverified. Do not merge until exact-head CI passes.
 - PR #33 remains draft/open/unmerged. No production resource, secret, database, Render setting or deployment was modified. This prompt serialization fix does not certify production readiness.
+
+
+### CI pass confirmed and infrastructure recheck limitation — 2026-10-22
+
+- PR #33 latest head is `1916780589e97d837ec53775a3c546fcdec96139`; CI run #178 completed successfully: [run #178](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39764323604). Confirmed steps: Ruff lint passed, PostgreSQL-backed safety/contract tests passed, Docker image build passed, non-root runtime verification passed, and cleanup passed.
+- A separate live Render/Neon readback was attempted. The connected tools returned workspace-selection and Neon authorization errors; therefore no updated production resource state is asserted by this continuation. Resolve the Render workspace selection and verify Neon account/project authorization before treating service, role, snapshot, or schema metadata as current.
+- No production settings, credentials, database data/roles, Render service settings, or deployments were changed during this continuation.
+- Status remains **NOT READY** until the actual production scope, least-privilege runtime role, secrets, current Render configuration, restore/rollback verification, branch rules, and live persistence/replay smoke are verified.

@@ -10,10 +10,10 @@ import json
 import os
 import sys
 import uuid
-from urllib.parse import urlsplit
-
 import httpx
 import psycopg
+
+from ucos_core.integrations.endpoint_policy import is_safe_analysis_base_url
 
 
 def parser() -> argparse.ArgumentParser:
@@ -38,16 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         "UCOS_RESEARCH_SCOPE_BRAND_ID",
     )
     scope = tuple(os.getenv(name, "").strip() for name in scope_names)
-    parsed = urlsplit(base_url)
-    local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
-    if (
-        not parsed.hostname
-        or (parsed.scheme != "https" and not local_http)
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-    ):
+    if not is_safe_analysis_base_url(base_url, production=False):
         print("UCOS_AGENT01_BASE_URL must be HTTPS (HTTP only for loopback).", file=sys.stderr)
         return 2
     if not token or not database_url or not all(scope):

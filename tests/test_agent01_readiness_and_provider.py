@@ -76,6 +76,22 @@ def test_model_adapter_rejects_endpoint_with_embedded_credentials(monkeypatch):
         OpenAICompatibleAnalyzer()
 
 
+@pytest.mark.parametrize(
+    "analysis_url",
+    [
+        "https://analysis.example:invalid/v1",
+        "https://analysis.example:99999/v1",
+        "https://analysis.example:0/v1",
+    ],
+)
+def test_model_adapter_rejects_invalid_endpoint_ports(monkeypatch, analysis_url):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("ANALYSIS_BASE_URL", analysis_url)
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
+        OpenAICompatibleAnalyzer()
+
+
 @pytest.mark.asyncio
 async def test_tavily_filters_malformed_and_credential_bearing_urls(monkeypatch):
     monkeypatch.setenv("TAVILY_API_KEY", "test-key")
@@ -219,6 +235,9 @@ def test_model_adapter_allows_loopback_http_outside_production(monkeypatch):
         "https://user:password@example.com/v1",
         "https://example.com/v1?token=unsafe",
         "https://example.com/v1#fragment",
+        "https://example.com:invalid/v1",
+        "https://example.com:99999/v1",
+        "https://example.com:0/v1",
     ],
 )
 def test_readiness_fails_closed_for_unsafe_analysis_endpoint(

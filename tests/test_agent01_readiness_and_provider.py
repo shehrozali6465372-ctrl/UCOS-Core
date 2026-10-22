@@ -82,6 +82,8 @@ def test_model_adapter_rejects_endpoint_with_embedded_credentials(monkeypatch):
         "https://analysis.example:invalid/v1",
         "https://analysis.example:99999/v1",
         "https://analysis.example:0/v1",
+        "https://analysis.example:/v1",
+        "https://analysis.example\\path/v1",
     ],
 )
 def test_model_adapter_rejects_invalid_endpoint_ports(monkeypatch, analysis_url):

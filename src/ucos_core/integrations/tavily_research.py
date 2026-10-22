@@ -18,16 +18,21 @@ def _candidate_evidence_url(value: object) -> str | None:
     """
     if not isinstance(value, str) or not value or len(value) > 2048:
         return None
+    if any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value) or "\\" in value:
+        return None
     try:
         parsed = urlsplit(value)
         hostname = parsed.hostname
+        port = parsed.port
+        authority = parsed.netloc.rsplit("@", maxsplit=1)[-1]
+        if authority.endswith(":") or authority.startswith(":"):
+            return None
         if (
             parsed.scheme not in {"https", "http"}
             or not hostname
             or parsed.username is not None
             or parsed.password is not None
-            or any(ord(char) < 32 or char.isspace() for char in value)
-            or parsed.port == 0
+            or port == 0
         ):
             return None
     except ValueError:

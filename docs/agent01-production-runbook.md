@@ -329,3 +329,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Tavily retrieval now streams the HTTP response and stops reading once the response exceeds 1 MiB, before JSON parsing or evidence-object construction. This bounds provider response-body processing and avoids buffering an unbounded response; provider errors and malformed JSON fail closed without returning provider bodies.
 - Added a MockTransport regression test with a response larger than the cap. The code/test head is `76ee497c9bdd78b04d09ccc08b7c7c732b9c6509`; exact-head CI runs [#247](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772968038) and [#248](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39772971042) are running for the focused and direct-to-main PRs.
 - This is a provider response-size bound, not a total process memory limit or an SSRF boundary. No production provider request or production configuration change was made.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (database CREATE privilege)
+
+- Tightened the production runtime-role probe one step further: it now rejects database-level `CREATE` privilege as well as `CREATE` on the `public` schema, table-level provisioning access, elevated attributes, and inherited membership in elevated roles. This prevents a role from passing readiness while retaining permission to create new database schemas/objects through the database ACL.
+- The privilege matrix now includes the database-level CREATE bit. Exact-head CI is required on the resulting code/test head; prior runs #249/#250 predate this change.
+- No database grants or production role settings were changed. This remains a fail-closed readiness test until the actual production runtime identity can be read and verified.

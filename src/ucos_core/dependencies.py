@@ -172,6 +172,15 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        has_table_privilege(
                            current_user, 'public.ucos_research_scope_grants', 'TRIGGER'
                        ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'INSERT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'UPDATE'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'REFERENCES'
+                       ),
                        has_schema_privilege(current_user, 'public', 'CREATE'),
                        has_database_privilege(
                            current_user, current_database(), 'CREATE'
@@ -214,6 +223,18 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        has_table_privilege(
                            current_user, 'public.ucos_scope_provisioning_audit', 'TRIGGER'
                        ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'SELECT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'INSERT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'UPDATE'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'REFERENCES'
+                       ),
                        has_table_privilege(
                            current_user, 'public.ucos_scope_provisioning_requests', 'SELECT'
                        ),
@@ -234,11 +255,23 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        ),
                        has_table_privilege(
                            current_user, 'public.ucos_scope_provisioning_requests', 'TRIGGER'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'SELECT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'INSERT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'UPDATE'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'REFERENCES'
                        )
                    FROM pg_roles AS role
                    WHERE role.rolname = current_user"""
             ).fetchone()
-        if not privileges or len(privileges) != 36 or not all(privileges[:4]):
+        if not privileges or len(privileges) != 47 or not all(privileges[:4]):
             return ProbeResult(configured=True, available=False)
         # Development may use an owner account; production must use a narrow
         # runtime identity. This rejects broad table/schema grants, provisioning

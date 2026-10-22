@@ -195,6 +195,23 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
     assert evidence[0].url == "https://example.com/good"
 
 
+def test_model_adapter_rejects_loopback_http_in_production(monkeypatch):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "production")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "http://127.0.0.1:1234/v1")
+    with pytest.raises(RuntimeError, match="must use HTTPS in production"):
+        OpenAICompatibleAnalyzer()
+
+
+def test_model_adapter_allows_loopback_http_outside_production(monkeypatch):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "development")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "http://127.0.0.1:1234/v1")
+    OpenAICompatibleAnalyzer()
+
+
 @pytest.mark.parametrize(
     "analysis_url",
     [

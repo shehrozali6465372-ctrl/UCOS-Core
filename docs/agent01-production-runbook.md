@@ -337,3 +337,11 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - Tightened the production runtime-role probe one step further: it now rejects database-level `CREATE` privilege as well as `CREATE` on the `public` schema, table-level provisioning access, elevated attributes, and inherited membership in elevated roles. This prevents a role from passing readiness while retaining permission to create new database schemas/objects through the database ACL.
 - The privilege matrix now includes the database-level CREATE bit. Exact-head CI is required on the resulting code/test head; prior runs #249/#250 predate this change.
 - No database grants or production role settings were changed. This remains a fail-closed readiness test until the actual production runtime identity can be read and verified.
+
+
+
+## Engineering loop checkpoint — 2026-10-22 (canonical model endpoint syntax)
+
+- The shared model endpoint policy now rejects explicit empty query/fragment delimiters (`?` and `#`) as well as non-empty query/fragment components. This closes a parser-normalization edge case where `urlsplit` reports an empty query/fragment even though the raw URL still contains the delimiter.
+- Added regression cases for `https://example.com/v1?` and `https://example.com/v1#`. Exact-head CI is required for the latest endpoint-policy/test commit; previous runs validate earlier heads only.
+- This remains endpoint configuration validation, not DNS/IP or network-egress SSRF enforcement.

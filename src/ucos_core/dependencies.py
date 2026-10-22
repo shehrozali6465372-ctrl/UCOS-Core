@@ -177,16 +177,58 @@ def probe_research_runtime_privileges() -> ProbeResult:
                        role.rolcreatedb,
                        role.rolcreaterole,
                        role.rolreplication,
-                       role.rolbypassrls
+                       role.rolbypassrls,
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'TRIGGER'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'TRIGGER'
+                       )
                    FROM pg_roles AS role
                    WHERE role.rolname = current_user"""
             ).fetchone()
-        if not privileges or len(privileges) != 20 or not all(privileges[:4]):
+        if not privileges or len(privileges) != 34 or not all(privileges[:4]):
             return ProbeResult(configured=True, available=False)
         # Development may use an owner account; production must use a narrow
         # runtime identity. This rejects table owners, provisioners, schema
         # creators, superusers, and roles with database/role/replication powers.
-        if production_environment() and any(privileges[4:]):
+        if production_environment() and any(privileges[4:21] + privileges[21:]):
             return ProbeResult(configured=True, available=False)
         return ProbeResult(configured=True, available=True)
     except Exception:

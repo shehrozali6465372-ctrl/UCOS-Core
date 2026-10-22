@@ -333,6 +333,7 @@ def test_api_get_result_returns_durable_task_status_for_configured_scope(
             )
         ],
         created_at="2026-10-22T00:00:00Z",
+        persisted=True,
     )
     monkeypatch.setattr(research_api, "_service", service)
     response = TestClient(app).get(

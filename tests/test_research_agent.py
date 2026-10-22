@@ -284,7 +284,10 @@ def test_api_accepts_sufficient_length_token_and_exact_scope(
 
 
 def test_capability_endpoint_requires_bearer_auth(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", "research-test-secret-value-with-more-than-32-characters")
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "research-test-secret-value-with-more-than-32-characters",
+    )
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "owner-project")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "private-workspace")
     monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "owner-brand")

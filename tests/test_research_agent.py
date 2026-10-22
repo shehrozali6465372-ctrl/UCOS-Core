@@ -281,3 +281,41 @@ def test_api_accepts_sufficient_length_token_and_exact_scope(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
+
+
+def test_capability_endpoint_requires_bearer_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "UCOS_RESEARCH_API_TOKEN",
+        "research-test-secret-value-with-more-than-32-characters",
+    )
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "owner-project")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "private-workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "owner-brand")
+    response = TestClient(app).get("/v1/agents/01/research/capabilities")
+    assert response.status_code == 401
+
+
+def test_capability_endpoint_reports_unintegrated_platforms_honestly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "research-test-secret-value-with-more-than-32-characters"
+    monkeypatch.setenv("UCOS_RESEARCH_API_TOKEN", token)
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_TENANT_ID", "owner-project")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_WORKSPACE_ID", "private-workspace")
+    monkeypatch.setenv("UCOS_RESEARCH_SCOPE_BRAND_ID", "owner-brand")
+    monkeypatch.setenv("TAVILY_API_KEY", "")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "")
+    response = TestClient(app).get(
+        "/v1/agents/01/research/capabilities",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    providers = {item["provider"]: item for item in payload["providers"]}
+    assert payload["deployment_model"] == "single_owner"
+    assert providers["tavily_general_web_search"]["status"] == "implemented"
+    assert providers["tavily_general_web_search"]["credential_status"] == "missing"
+    for platform in ("pinterest", "youtube", "facebook", "tiktok", "instagram"):
+        assert providers[platform]["status"] == "not_integrated"
+        assert providers[platform]["capabilities"] == []
+    assert providers["product_affiliate_programs"]["status"] == "not_integrated"

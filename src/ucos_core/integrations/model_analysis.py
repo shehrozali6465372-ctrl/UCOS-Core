@@ -28,7 +28,7 @@ class OpenAICompatibleAnalyzer:
             or parsed.fragment
         ):
             raise RuntimeError(
-                "ANALYSIS_BASE_URL must use HTTPS in production and must not embed credentials"
+                "ANALYSIS_BASE_URL must be HTTPS in production (loopback HTTP only in development)"
             )
         self._api_key = os.getenv("ANALYSIS_API_KEY", "").strip()
         self._model = os.getenv("ANALYSIS_MODEL", "gpt-4.1-mini").strip()

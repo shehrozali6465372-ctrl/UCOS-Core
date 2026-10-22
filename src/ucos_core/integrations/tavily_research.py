@@ -35,20 +35,31 @@ class TavilyResearchSource:
             )
             response.raise_for_status()
             payload = response.json()
+        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+            raise RuntimeError("Tavily returned an invalid response shape")
+
         timestamp = datetime.now(UTC).isoformat()
         items = []
-        for item in payload.get("results", []):
-            url = _candidate_evidence_url(item.get("url"))
-            if url is None:
+        for item in payload["results"]:
+            if not isinstance(item, dict):
                 continue
-            title = item.get("title")
+            url = _candidate_evidence_url(item.get("url"))
+            excerpt = item.get("content")
+            if url is None or not isinstance(excerpt, str) or not excerpt.strip():
+                continue
+            raw_title = item.get("title")
+            title = (
+                raw_title.strip()
+                if isinstance(raw_title, str) and raw_title.strip()
+                else url
+            )
             try:
                 items.append(
                     EvidenceItem(
                         source="tavily",
-                        title=str(title or url)[:500],
+                        title=title[:500],
                         url=url,
-                        excerpt=str(item.get("content", ""))[:8000],
+                        excerpt=excerpt.strip()[:8000],
                         retrieved_at=timestamp,
                     )
                 )

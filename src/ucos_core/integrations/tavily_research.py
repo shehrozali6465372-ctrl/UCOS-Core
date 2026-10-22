@@ -9,6 +9,32 @@ import httpx
 from ucos_core.agents.research.contracts import EvidenceItem
 
 
+def _candidate_evidence_url(value: object) -> str | None:
+    """Reject malformed citation URLs before preserving them as evidence.
+
+    This is syntax/authority hygiene only. It is not an SSRF boundary because
+    this adapter does not dereference returned URLs; any future fetcher must
+    separately enforce DNS/IP, redirect and egress policy.
+    """
+    if not isinstance(value, str) or not value or len(value) > 2048:
+        return None
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        if (
+            parsed.scheme not in {"https", "http"}
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or any(ord(char) < 32 or char.isspace() for char in value)
+            or parsed.port == 0
+        ):
+            return None
+    except ValueError:
+        return None
+    return value
+
+
 class TavilyResearchSource:
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key or os.getenv("TAVILY_API_KEY", "").strip()
@@ -31,30 +57,22 @@ class TavilyResearchSource:
         timestamp = datetime.now(UTC).isoformat()
         items = []
         for item in payload.get("results", []):
-            url = item.get("url")
-            title = item.get("title")
-            if not isinstance(url, str) or len(url) > 2048:
+            url = _candidate_evidence_url(item.get("url"))
+            if url is None:
                 continue
+            title = item.get("title")
             try:
-                parsed_url = urlsplit(url)
-                safe_url = (
-                    parsed_url.scheme in {"https", "http"}
-                    and bool(parsed_url.hostname)
-                    and parsed_url.username is None
-                    and parsed_url.password is None
-                    and not any(ord(char) < 32 for char in url)
+                items.append(
+                    EvidenceItem(
+                        source="tavily",
+                        title=str(title or url)[:500],
+                        url=url,
+                        excerpt=str(item.get("content", ""))[:8000],
+                        retrieved_at=timestamp,
+                    )
                 )
             except ValueError:
-                safe_url = False
-            if not safe_url:
+                # A provider result that violates the shared evidence contract is
+                # omitted rather than converted to fabricated/invalid evidence.
                 continue
-            items.append(
-                EvidenceItem(
-                    source="tavily",
-                    title=str(title or url)[:500],
-                    url=url,
-                    excerpt=str(item.get("content", ""))[:8000],
-                    retrieved_at=timestamp,
-                )
-            )
         return items[:max_results]

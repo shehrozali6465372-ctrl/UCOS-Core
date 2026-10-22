@@ -162,6 +162,39 @@ def test_evidence_rejects_malformed_url_syntax(url: str) -> None:
         )
 
 
+@pytest.mark.asyncio
+async def test_tavily_filters_malformed_url_authorities(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+
+    async def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {"url": "https://example.com:bad-port/path", "title": "bad", "content": "x"},
+                    {"url": "https://example.com:99999/path", "title": "bad", "content": "x"},
+                    {"url": "https://example.com/path with spaces", "title": "bad", "content": "x"},
+                    {
+                        "url": "https://user:password@example.com/path",
+                        "title": "bad",
+                        "content": "x",
+                    },
+                    {"url": "https://example.com/good", "title": "good", "content": "safe"},
+                ]
+            },
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        evidence = await TavilyResearchSource().search("query", 5)
+
+    assert len(evidence) == 1
+    assert evidence[0].url == "https://example.com/good"
+
+
 @pytest.mark.parametrize(
     "analysis_url",
     [

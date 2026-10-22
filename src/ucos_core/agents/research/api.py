@@ -6,11 +6,11 @@ import secrets
 
 from fastapi import APIRouter, Header, HTTPException
 
-from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
 from ucos_core.agents.research.capabilities import (
     AgentCapabilityResponse,
     build_capability_catalog,
 )
+from ucos_core.agents.research.contracts import ResearchRequest, ResearchResponse
 from ucos_core.agents.research.service import (
     ResearchBusy,
     ResearchConflict,

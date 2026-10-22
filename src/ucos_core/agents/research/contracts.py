@@ -104,7 +104,7 @@ class ResearchResponse(BaseModel):
     status: Literal["SUCCEEDED", "NO_RESULTS"]
     analysis: str
     evidence: list[EvidenceItem]
-    persisted: bool = True
+    persisted: bool = False
 
 
 class ResearchTaskResponse(BaseModel):

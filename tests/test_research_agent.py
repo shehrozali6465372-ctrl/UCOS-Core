@@ -488,3 +488,46 @@ def test_capability_endpoint_reports_unintegrated_platforms_honestly(
         assert providers[platform]["status"] == "not_integrated"
         assert providers[platform]["capabilities"] == []
     assert providers["product_affiliate_programs"]["status"] == "not_integrated"
+
+
+def test_research_request_trims_query_whitespace():
+    from_payload = request().model_dump()
+    from_payload["query"] = "  market trends  "
+
+    validated = ResearchRequest.model_validate(from_payload)
+
+    assert validated.query == "market trends"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "request_id",
+        "correlation_id",
+        "tenant_id",
+        "workspace_id",
+        "brand_id",
+        "workflow_id",
+        "workflow_step_id",
+    ],
+)
+@pytest.mark.parametrize("value", ["", "   ", " tenant-padded "])
+def test_research_request_rejects_blank_or_whitespace_padded_identifiers(field, value):
+    from pydantic import ValidationError
+
+    payload = request().model_dump()
+    payload[field] = value
+
+    with pytest.raises(ValidationError):
+        ResearchRequest.model_validate(payload)
+
+
+@pytest.mark.parametrize("query", ["", "  ", "  x  "])
+def test_research_request_rejects_queries_that_are_empty_after_trimming(query):
+    from pydantic import ValidationError
+
+    payload = request().model_dump()
+    payload["query"] = query
+
+    with pytest.raises(ValidationError):
+        ResearchRequest.model_validate(payload)

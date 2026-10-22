@@ -248,3 +248,12 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - A separate live Render/Neon readback was attempted. The connected tools returned workspace-selection and Neon authorization errors; therefore no updated production resource state is asserted by this continuation. Resolve the Render workspace selection and verify Neon account/project authorization before treating service, role, snapshot, or schema metadata as current.
 - No production settings, credentials, database data/roles, Render service settings, or deployments were changed during this continuation.
 - Status remains **NOT READY** until the actual production scope, least-privilege runtime role, secrets, current Render configuration, restore/rollback verification, branch rules, and live persistence/replay smoke are verified.
+
+
+
+### Engineering loop checkpoint — 2026-10-22
+
+- Latest endpoint/readiness hardening work is on branch `agent-01/model-prompt-newlines`, stacked through PR #33. It aligns model adapter and readiness URL validation, rejects malformed ports and whitespace/control characters, and adds regression cases.
+- CI exposed a true readiness mismatch after adapter-level validation was added: the analyzer rejected malformed ports while readiness still marked them safe. Readiness logic was corrected to use fail-closed parsing. The first aligned run then exposed a tab/whitespace edge case and was corrected with an explicit whitespace check.
+- CI run [#180](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39765425660) passed on the adapter code commit but predates readiness alignment. CI [#181](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39765439488) failed because those alignment regression tests revealed the mismatch. CI [#182](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39765925835) passed the first readiness fix; the following expanded whitespace-test run [#183](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39765949736) failed on the literal tab case. The subsequent strict-whitespace fix is at `690fa72e8a2f4cce91a47f5a9c84c63c3e3d6373`; its exact-head CI is pending at run [#184](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39766086901).
+- Do not merge PR #33 or mark endpoint/readiness engineering complete until CI passes on the exact latest code head. CI is an ephemeral test; production runtime, secrets, DB role/grants, branch protection and live replay remain separate gates.

@@ -384,3 +384,18 @@ Production readiness status: **NOT READY**. No production changes were made as p
 - GitHub `main` remains at `d770512de3bf7523ff04885a671f82dfa93d952e`, branch protection `false`. The full code candidate is [draft PR #34](https://github.com/shehrozali6465372-ctrl/UCOS-Core/pull/34), exact code head `80e181829174d08324eb485eddbe9cfa7ffcff92`; exact-head CI runs [#271](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39774088966) and [#272](https://github.com/shehrozali6465372-ctrl/UCOS-Core/actions/runs/39774089258) passed.
 - **Production NOT READY.** Blockers are concrete: zero enabled scope grants; no dedicated least-privilege runtime role; owner role has dangerous privileges; Render tracks an older branch, has no readiness health check, and exposes public ingress; backup restore drill and automatic schedule are unverified; main branch protection is off; secrets are not verified; no authenticated live persistence/replay smoke has run.
 - These were read-only inspections only. No production database, role, grant, secret, Render setting, or deployment was modified.
+
+
+## Current owner-led review update — 2026-10-23
+
+This update supersedes older production-state snapshots above where they conflict. The owner confirmed the provisioning audit actor identity as `Shehroz javed`.
+
+- PR #34 remains open/unmerged at the reviewed candidate head. Exact-head CI runs #273 and #274 passed; this is not merge or deployment authorization.
+- Neon production/default branch `br-dark-pond-azjzxzmd`, database `ucos_core`: an enabled initial scope grant, provisioning request/idempotency record, and audit row were created and subsequently verified. Do not follow older statements above claiming zero scope/audit/provisioning rows.
+- Runtime and provisioner login roles now report Neon `authentication_method=password`. Database role checks previously showed `LOGIN=true`, direct elevated attributes false, and membership in their respective limited group roles. A recursive effective-membership check against `neon_superuser` and all elevated roles is still required before these credentials can be used by production services.
+- Runtime role: `ucos_core_runtime_login` → `ucos_core_runtime_limited`. Provisioner role: `ucos_core_provisioner_login` → `ucos_core_provisioner_limited`. Do not paste passwords or connection strings into chat or repository files.
+- Render `ucos-core-agent01` still tracks `agent-01/production-v1`; live commit remains `cac576d80761c04866a7e06e11473c71fbaf8aff`. Health-check path remains unset and ingress remains `0.0.0.0/0`. PR #34 is not deployed.
+- The service code uses `DATABASE_URL` for runtime research and the operator provisioning command uses `UCOS_PROVISIONING_DATABASE_URL`. Keep these credentials separate. The live persistence/replay smoke has not been verified.
+- Remaining release blockers: recursive effective privilege verification; required Render secret/configuration and Redis/provider connectivity checks; reviewed commit deployment plan; `/health/ready` and ingress policy; authenticated persistence/replay smoke; GitHub main branch protection; and backup/restore verification.
+
+No merge or deployment is authorized by this status note.

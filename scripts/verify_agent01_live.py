@@ -24,6 +24,26 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
+def _diagnostic(exc: Exception) -> str:
+    """Return a safe category, never an exception message that may contain secrets."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return f"HTTP request returned status {exc.response.status_code}."
+    if isinstance(exc, httpx.TimeoutException):
+        return "HTTP request timed out."
+    if isinstance(exc, httpx.RequestError):
+        return "HTTP connection/transport failed."
+    if isinstance(exc, (psycopg.OperationalError, psycopg.InterfaceError)):
+        return "PostgreSQL connection failed."
+    if isinstance(exc, psycopg.Error):
+        return "PostgreSQL query/transaction failed."
+    if isinstance(exc, (json.JSONDecodeError, ValueError)):
+        return "Response or stored evidence had an invalid format."
+    if isinstance(exc, RuntimeError):
+        # RuntimeErrors here use only static messages authored by this script.
+        return str(exc)
+    return f"Unexpected error type: {type(exc).__name__}."
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if not args.confirm_live:
@@ -43,7 +63,13 @@ def main(argv: list[str] | None = None) -> int:
         print("UCOS_AGENT01_BASE_URL must be HTTPS (HTTP only for loopback).", file=sys.stderr)
         return 2
     if not token or not database_url or not all(scope):
-        print("Live smoke-test configuration is incomplete.", file=sys.stderr)
+        missing = []
+        if not token:
+            missing.append("UCOS_RESEARCH_API_TOKEN")
+        if not database_url:
+            missing.append("UCOS_AGENT01_VERIFY_DATABASE_URL")
+        missing.extend(name for name, value in zip(scope_names, scope) if not value)
+        print("Live smoke-test configuration is incomplete: " + ", ".join(missing), file=sys.stderr)
         return 2
 
     request_id = str(uuid.uuid4())
@@ -77,25 +103,25 @@ def main(argv: list[str] | None = None) -> int:
             replay_payload = replay.json()
 
         if first_payload.get("persisted") is not True:
-            raise RuntimeError("first response did not confirm durable persistence")
+            raise RuntimeError("API response did not confirm durable persistence.")
         if first_payload.get("status") not in {"SUCCEEDED", "NO_RESULTS"}:
-            raise RuntimeError("first response returned an unsupported terminal status")
+            raise RuntimeError("API response returned an unsupported terminal status.")
         if first_payload != replay_payload:
-            raise RuntimeError("idempotent replay did not return the same stored response")
+            raise RuntimeError("Idempotent replay did not return the same stored response.")
 
         with psycopg.connect(database_url, connect_timeout=5) as connection:
-            # Enforce read-only mode in the database session even if the supplied
-            # verification credential was accidentally granted write privileges.
-            connection.execute("SET TRANSACTION READ ONLY")
-            row = connection.execute(
-                """SELECT correlation_id, tenant_id, workspace_id, brand_id,
-                          workflow_id, workflow_step_id, query_text, max_results,
-                          status, analysis_text, evidence_json
-                   FROM ucos_research_runs WHERE request_id = %s""",
-                (request_id,),
-            ).fetchone()
+            # Force the verification session to be read-only.
+            with connection.transaction():
+                connection.execute("SET TRANSACTION READ ONLY")
+                row = connection.execute(
+                    """SELECT correlation_id, tenant_id, workspace_id, brand_id,
+                              workflow_id, workflow_step_id, query_text, max_results,
+                              status, analysis_text, evidence_json
+                       FROM ucos_research_runs WHERE request_id = %s""",
+                    (request_id,),
+                ).fetchone()
         if row is None:
-            raise RuntimeError("request result was not found in PostgreSQL")
+            raise RuntimeError("Request result was not found in PostgreSQL.")
         expected_evidence = first_payload.get("evidence", [])
         stored_evidence = row[10]
         if isinstance(stored_evidence, str):
@@ -111,13 +137,9 @@ def main(argv: list[str] | None = None) -> int:
             or row[9] != first_payload.get("analysis", "")
             or stored_evidence != expected_evidence
         ):
-            raise RuntimeError("persisted PostgreSQL result does not match API response")
-    except Exception:
-        print(
-            "Live smoke test failed. Check endpoint readiness, scope grant, migrations, "
-            "provider configuration, and database access; no credentials were printed.",
-            file=sys.stderr,
-        )
+            raise RuntimeError("Persisted PostgreSQL result does not match API response.")
+    except Exception as exc:
+        print("Live smoke test failed: " + _diagnostic(exc), file=sys.stderr)
         return 1
 
     print(

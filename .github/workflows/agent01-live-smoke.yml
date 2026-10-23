@@ -24,8 +24,10 @@ jobs:
     timeout-minutes: 5
     environment: production
     steps:
-      - name: Check out repository (current default-branch commit)
+      - name: Check out tested Agent 01 verifier branch
         uses: actions/checkout@v4
+        with:
+          ref: agent-01/model-prompt-newlines
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

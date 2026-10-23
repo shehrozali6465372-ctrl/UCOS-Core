@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
             missing.append("UCOS_RESEARCH_API_TOKEN")
         if not database_url:
             missing.append("UCOS_AGENT01_VERIFY_DATABASE_URL")
-        missing.extend(name for name, value in zip(scope_names, scope) if not value)
+        missing.extend(name for name, value in zip(scope_names, scope, strict=True) if not value)
         print("Live smoke-test configuration is incomplete: " + ", ".join(missing), file=sys.stderr)
         return 2
 

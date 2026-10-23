@@ -21,38 +21,47 @@ jobs:
   readiness:
     runs-on: ubuntu-latest
     timeout-minutes: 1
+    environment: production
     steps:
       - name: Probe production readiness (read-only, no provider call)
         env:
           UCOS_AGENT01_BASE_URL: ${{ secrets.UCOS_AGENT01_BASE_URL }}
         run: |
           python - <<'PY'
+          import json
           import os
           import sys
-          import httpx
+          import urllib.error
+          import urllib.request
 
           base = os.environ.get("UCOS_AGENT01_BASE_URL", "").strip().rstrip("/")
           if not base.startswith("https://"):
               print("PREFLIGHT_FAILED: UCOS_AGENT01_BASE_URL is missing or not HTTPS.")
               sys.exit(2)
+          request = urllib.request.Request(base + "/health/ready", headers={"Accept": "application/json"})
           try:
-              response = httpx.get(base + "/health/ready", timeout=httpx.Timeout(10.0, connect=5.0))
-          except httpx.RequestError as exc:
-              print("PREFLIGHT_FAILED: readiness endpoint connection failed (" + type(exc).__name__ + ").")
+              with urllib.request.urlopen(request, timeout=10) as response:
+                  status = response.status
+                  body = response.read(65536)
+          except urllib.error.HTTPError as exc:
+              status = exc.code
+              body = exc.read(65536)
+          except (urllib.error.URLError, TimeoutError) as exc:
+              print("PREFLIGHT_FAILED: readiness connection failed (" + type(exc).__name__ + ").")
               sys.exit(2)
 
-          print("readiness_http_status=" + str(response.status_code))
+          print("readiness_http_status=" + str(status))
           try:
-              payload = response.json()
-          except ValueError:
+              payload = json.loads(body)
+          except (ValueError, UnicodeDecodeError):
               print("PREFLIGHT_FAILED: readiness endpoint did not return JSON.")
               sys.exit(2)
           details = payload.get("detail", payload)
           components = details.get("dependencies", {}) if isinstance(details, dict) else {}
-          if components:
+          if isinstance(components, dict):
               for name, available in sorted(components.items()):
-                  print("dependency_" + name + "=" + str(bool(available)).lower())
-          if response.status_code != 200:
+                  print("dependency_" + str(name) + "=" + str(bool(available)).lower())
+          if status != 200:
               print("PREFLIGHT_FAILED: production service is not ready; no research request was sent.")
               sys.exit(1)
           print("PREFLIGHT_PASS: production service reports ready.")

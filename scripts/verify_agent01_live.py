@@ -27,7 +27,28 @@ def parser() -> argparse.ArgumentParser:
 def _diagnostic(exc: Exception) -> str:
     """Return a safe category, never an exception message that may contain secrets."""
     if isinstance(exc, httpx.HTTPStatusError):
-        return f"HTTP request returned status {exc.response.status_code}."
+        # The API exposes only static, operator-safe detail strings for HTTP errors.
+        # Allowlist them so diagnostics never echo arbitrary response content/secrets.
+        safe_details = {
+            "research authentication is not configured safely",
+            "research token scope is not configured",
+            "research service not configured",
+            "authorization service unavailable",
+            "idempotency claim failed",
+            "research provider or durable persistence failed",
+            "project scope is not authorized",
+            "request is outside authorized tenant scope",
+        }
+        detail = None
+        try:
+            payload = exc.response.json()
+            candidate = payload.get("detail") if isinstance(payload, dict) else None
+            if isinstance(candidate, str) and candidate in safe_details:
+                detail = candidate
+        except (ValueError, json.JSONDecodeError):
+            pass
+        suffix = f" Safe API detail: {detail}." if detail else ""
+        return f"HTTP request returned status {exc.response.status_code}.{suffix}"
     if isinstance(exc, httpx.TimeoutException):
         return "HTTP request timed out."
     if isinstance(exc, httpx.RequestError):

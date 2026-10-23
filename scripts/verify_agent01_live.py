@@ -45,7 +45,7 @@ def _diagnostic(exc: Exception) -> str:
             candidate = payload.get("detail") if isinstance(payload, dict) else None
             if isinstance(candidate, str) and candidate in safe_details:
                 detail = candidate
-        except (ValueError, json.JSONDecodeError):
+        except ValueError:
             pass
         suffix = f" Safe API detail: {detail}." if detail else ""
         return f"HTTP request returned status {exc.response.status_code}.{suffix}"

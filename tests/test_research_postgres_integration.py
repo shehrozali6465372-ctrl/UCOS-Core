@@ -139,6 +139,28 @@ def test_schema_probe_confirms_all_claim_migrations(repository):
 
 
 @pytest.mark.asyncio
+async def test_legacy_in_progress_claim_with_null_expiry_can_be_recovered(repository):
+    req = request()
+    first_generation = await repository.claim(req)
+
+    # Before leased-claim migration, an in-progress record may have no expiry.
+    async with await psycopg.AsyncConnection.connect(DATABASE_URL) as conn:
+        await conn.execute(
+            "UPDATE ucos_research_runs SET claim_expires_at = NULL "
+            "WHERE request_id = %s",
+            (req.request_id,),
+        )
+
+    next_generation = await repository.claim(req)
+    assert next_generation > first_generation
+    from ucos_core.repositories.research_postgres import ResearchIdempotencyConflict
+
+    with pytest.raises(ResearchIdempotencyConflict):
+        await repository.save(req, first_generation, "SUCCEEDED", "stale", [])
+    await repository.save(req, next_generation, "NO_RESULTS", "", [])
+
+
+@pytest.mark.asyncio
 async def test_release_expires_only_the_current_generation(repository):
     req = request()
     first_generation = await repository.claim(req)
@@ -175,3 +197,21 @@ async def test_get_result_returns_only_exact_scope(repository):
         req.request_id, "different-tenant", req.workspace_id, req.brand_id
     )
     assert hidden is None
+
+
+def test_runtime_privilege_probe_executes_against_real_postgres_role(
+    repository, monkeypatch
+):
+    from ucos_core.dependencies import probe_research_runtime_privileges
+
+    # The ephemeral CI connection owns the migrated test tables, so it should
+    # pass in development but fail the production least-privilege gate.
+    monkeypatch.setenv("UCOS_ENV", "development")
+    development = probe_research_runtime_privileges()
+    assert development.configured is True
+    assert development.available is True
+
+    monkeypatch.setenv("UCOS_ENV", "production")
+    production = probe_research_runtime_privileges()
+    assert production.configured is True
+    assert production.available is False

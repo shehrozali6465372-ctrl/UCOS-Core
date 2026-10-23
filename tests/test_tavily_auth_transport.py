@@ -63,3 +63,21 @@ async def test_tavily_api_error_raises_without_returning_provider_body(monkeypat
     ):
         with pytest.raises(httpx.HTTPStatusError):
             await TavilyResearchSource().search("safe query", 3)
+
+
+@pytest.mark.asyncio
+async def test_tavily_response_size_is_bounded(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-secret-key")
+
+    async def handler(_request):
+        return httpx.Response(200, content=b"x" * (1024 * 1024 + 1))
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(
+            transport=httpx.MockTransport(handler), **kwargs
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="1 MiB size limit"):
+            await TavilyResearchSource().search("safe query", 3)

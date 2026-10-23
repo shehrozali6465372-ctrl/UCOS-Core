@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Literal
-from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ucos_core.agents.research.evidence_url import is_valid_evidence_url
 
 
 class ResearchRequest(BaseModel):
@@ -25,6 +26,28 @@ class ResearchRequest(BaseModel):
     workflow_step_id: str = Field(min_length=1, max_length=128)
     query: str = Field(min_length=3, max_length=2000)
     max_results: int = Field(default=5, ge=1, le=10)
+
+    @field_validator(
+        "request_id",
+        "correlation_id",
+        "tenant_id",
+        "workspace_id",
+        "brand_id",
+        "workflow_id",
+        "workflow_step_id",
+    )
+    @classmethod
+    def require_canonical_identifiers(cls, value: str) -> str:
+        """Reject blank identifiers and values whose surrounding whitespace changes scope."""
+        if not value.strip() or value != value.strip():
+            raise ValueError("identifiers must be non-blank and have no surrounding whitespace")
+        return value
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def trim_query(cls, value: object) -> object:
+        """Normalize user whitespace before the query length constraint is applied."""
+        return value.strip() if isinstance(value, str) else value
 
 
 class EvidenceItem(BaseModel):
@@ -56,22 +79,7 @@ class EvidenceItem(BaseModel):
     @classmethod
     def validate_http_url(cls, value: str) -> str:
         """Validate evidence URL syntax; this is not a network-level SSRF defense."""
-        try:
-            parsed = urlsplit(value)
-            hostname = parsed.hostname
-            valid = (
-                parsed.scheme in {"https", "http"}
-                and bool(hostname)
-                and parsed.username is None
-                and parsed.password is None
-                and not any(ord(char) < 32 for char in value)
-                and not any(char.isspace() for char in value)
-                and parsed.port != 0
-            )
-            # Invalid port syntax raises ValueError on parsed.port; reject it.
-        except ValueError:
-            valid = False
-        if not valid:
+        if not is_valid_evidence_url(value):
             raise ValueError(
                 "evidence URL must be valid HTTP(S) without embedded credentials"
             )
@@ -96,7 +104,7 @@ class ResearchResponse(BaseModel):
     status: Literal["SUCCEEDED", "NO_RESULTS"]
     analysis: str
     evidence: list[EvidenceItem]
-    persisted: bool = True
+    persisted: bool = False
 
 
 class ResearchTaskResponse(BaseModel):
@@ -111,4 +119,4 @@ class ResearchTaskResponse(BaseModel):
     analysis: str = ""
     evidence: list[EvidenceItem] = Field(default_factory=list)
     created_at: datetime
-    persisted: bool = True
+    persisted: bool = False

@@ -17,8 +17,64 @@ permissions:
   contents: read
 
 jobs:
+  readiness:
+    name: Wake and verify production readiness (no provider calls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    environment: production
+    steps:
+      - name: Check production readiness with Free-instance cold-start retries
+        env:
+          BASE_URL: ${{ secrets.UCOS_AGENT01_BASE_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          base = os.environ.get("BASE_URL", "").strip().rstrip("/")
+          parsed = urllib.parse.urlparse(base)
+          if parsed.scheme != "https" or not parsed.hostname:
+              raise SystemExit("UCOS_AGENT01_BASE_URL must be a valid HTTPS URL.")
+          print(f"Readiness target host: {parsed.hostname}")
+          url = base + "/health/ready"
+          delays = [0, 3, 5, 8, 10, 10, 10, 10]
+          last_reason = "no attempt made"
+          for attempt, delay in enumerate(delays, start=1):
+              if delay:
+                  time.sleep(delay)
+              try:
+                  request = urllib.request.Request(
+                      url,
+                      headers={"User-Agent": "UCOS-Agent01-Readiness/1.0"},
+                  )
+                  with urllib.request.urlopen(request, timeout=12) as response:
+                      status = response.status
+                      body = response.read(4096).decode("utf-8", "replace")
+                      if status == 200:
+                          print(f"PASS readiness HTTP {status} on attempt {attempt}/{len(delays)}")
+                          print(body[:1000])
+                          raise SystemExit(0)
+                      last_reason = f"HTTP {status}"
+              except urllib.error.HTTPError as exc:
+                  last_reason = f"HTTP {exc.code}"
+                  if exc.code not in (429, 502, 503, 504):
+                      raise SystemExit(f"Readiness failed with non-retryable HTTP {exc.code}.")
+              except Exception as exc:
+                  # Do not print exception text: it can contain URL details.
+                  last_reason = type(exc).__name__
+              print(f"Readiness attempt {attempt}/{len(delays)} did not pass ({last_reason}).")
+          raise SystemExit(
+              "Production readiness did not pass after cold-start retries "
+              f"(last category: {last_reason}). No provider-backed request was made."
+          )
+          PY
+
   live-smoke:
     if: ${{ inputs.confirm_live }}
+    needs: readiness
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # Set GitHub Environment protection rules for an additional owner approval gate.

@@ -119,6 +119,170 @@ def probe_research_schema() -> ProbeResult:
         return ProbeResult(configured=True, available=False)
 
 
+def probe_research_runtime_privileges() -> ProbeResult:
+    """Verify required grants and production least-privilege role settings."""
+    database_url = _configured_url("DATABASE_URL")
+    if not database_url:
+        return ProbeResult(configured=False, available=False)
+    try:
+        import psycopg
+
+        with psycopg.connect(database_url, connect_timeout=2) as connection:
+            privileges = connection.execute(
+                """SELECT
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_runs', 'TRIGGER'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'TRIGGER'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'INSERT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'UPDATE'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_research_scope_grants', 'REFERENCES'
+                       ),
+                       has_schema_privilege(current_user, 'public', 'CREATE'),
+                       has_database_privilege(
+                           current_user, current_database(), 'CREATE'
+                       ),
+                       role.rolsuper,
+                       role.rolcreatedb,
+                       role.rolcreaterole,
+                       role.rolreplication,
+                       role.rolbypassrls,
+                       EXISTS (
+                           SELECT 1
+                           FROM pg_roles AS elevated
+                           WHERE (
+                               elevated.rolsuper
+                               OR elevated.rolcreatedb
+                               OR elevated.rolcreaterole
+                               OR elevated.rolreplication
+                               OR elevated.rolbypassrls
+                           )
+                           AND pg_has_role(current_user, elevated.oid, 'MEMBER')
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'TRIGGER'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'SELECT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'INSERT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'UPDATE'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_audit', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'SELECT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'INSERT'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'UPDATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'DELETE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'TRUNCATE'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'REFERENCES'
+                       ),
+                       has_table_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'TRIGGER'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'SELECT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'INSERT'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'UPDATE'
+                       ),
+                       has_any_column_privilege(
+                           current_user, 'public.ucos_scope_provisioning_requests', 'REFERENCES'
+                       )
+                   FROM pg_roles AS role
+                   WHERE role.rolname = current_user"""
+            ).fetchone()
+        if not privileges or len(privileges) != 47 or not all(privileges[:4]):
+            return ProbeResult(configured=True, available=False)
+        # Development may use an owner account; production must use a narrow
+        # runtime identity. This rejects broad table/schema grants, provisioning
+        # access, elevated role attributes, and membership in elevated roles.
+        if production_environment() and any(privileges[4:]):
+            return ProbeResult(configured=True, available=False)
+        return ProbeResult(configured=True, available=True)
+    except Exception:
+        return ProbeResult(configured=True, available=False)
+
+
 def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     from ucos_core.readiness import DependencyStatus, evaluate_readiness
 
@@ -140,29 +304,22 @@ def required_dependencies_ready() -> tuple[bool, dict[str, bool]]:
     components["research_auth"] = token_configured
     components["research_scope"] = scope_grant.configured and scope_grant.available
     components["research_schema"] = research_schema.configured and research_schema.available
+    runtime_privileges = probe_research_runtime_privileges()
+    components["research_runtime_privileges"] = (
+        runtime_privileges.configured and runtime_privileges.available
+    )
     components["tavily"] = bool(os.getenv("TAVILY_API_KEY", "").strip())
     # Match the analyzer's actual endpoint validation. A non-empty URL is not
     # sufficient: remote endpoints must use HTTPS and must not embed credentials,
     # query strings, or fragments. Loopback HTTP is allowed for local development.
-    from urllib.parse import urlsplit
+    from ucos_core.integrations.endpoint_policy import is_safe_analysis_base_url
 
     analysis_base_url = os.getenv(
         "ANALYSIS_BASE_URL", "https://api.openai.com/v1"
     ).strip().rstrip("/")
-    parsed_model_url = urlsplit(analysis_base_url)
-    local_http = parsed_model_url.scheme == "http" and parsed_model_url.hostname in {
-        "localhost", "127.0.0.1", "::1"
-    }
-    # A loopback HTTP endpoint is a development-only escape hatch. Production
-    # readiness must reject it even if the hostname is local.
-    allow_local_http = local_http and not production_environment()
-    analysis_endpoint_safe = bool(
-        parsed_model_url.hostname
-        and (parsed_model_url.scheme == "https" or allow_local_http)
-        and parsed_model_url.username is None
-        and parsed_model_url.password is None
-        and not parsed_model_url.query
-        and not parsed_model_url.fragment
+    analysis_endpoint_safe = is_safe_analysis_base_url(
+        analysis_base_url,
+        production=production_environment(),
     )
     components["analysis_model"] = bool(
         os.getenv("ANALYSIS_API_KEY", "").strip()

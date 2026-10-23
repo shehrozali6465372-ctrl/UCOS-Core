@@ -1,38 +1,20 @@
 """Tavily evidence retrieval adapter with strict timeouts and input bounds."""
 
+import json
 import os
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
 
 import httpx
 
 from ucos_core.agents.research.contracts import EvidenceItem
+from ucos_core.agents.research.evidence_url import is_valid_evidence_url
 
 
 def _candidate_evidence_url(value: object) -> str | None:
-    """Reject malformed citation URLs before preserving them as evidence.
-
-    This is syntax/authority hygiene only. It is not an SSRF boundary because
-    this adapter does not dereference returned URLs; any future fetcher must
-    separately enforce DNS/IP, redirect and egress policy.
-    """
-    if not isinstance(value, str) or not value or len(value) > 2048:
+    """Preserve only citations that satisfy the shared evidence URL contract."""
+    if not isinstance(value, str):
         return None
-    try:
-        parsed = urlsplit(value)
-        hostname = parsed.hostname
-        if (
-            parsed.scheme not in {"https", "http"}
-            or not hostname
-            or parsed.username is not None
-            or parsed.password is not None
-            or any(ord(char) < 32 or char.isspace() for char in value)
-            or parsed.port == 0
-        ):
-            return None
-    except ValueError:
-        return None
-    return value
+    return value if is_valid_evidence_url(value) else None
 
 
 class TavilyResearchSource:
@@ -42,8 +24,10 @@ class TavilyResearchSource:
     async def search(self, query: str, max_results: int) -> list[EvidenceItem]:
         if not self._api_key:
             raise RuntimeError("TAVILY_API_KEY is not configured")
+        max_response_bytes = 1_048_576
         async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=5.0)) as client:
-            response = await client.post(
+            async with client.stream(
+                "POST",
                 "https://api.tavily.com/search",
                 headers={"Authorization": f"Bearer {self._api_key}"},
                 json={
@@ -51,23 +35,42 @@ class TavilyResearchSource:
                     "max_results": max_results,
                     "search_depth": "advanced",
                 },
-            )
-            response.raise_for_status()
-            payload = response.json()
+            ) as response:
+                response.raise_for_status()
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    if len(body) + len(chunk) > max_response_bytes:
+                        raise RuntimeError("Tavily response exceeded the 1 MiB size limit")
+                    body.extend(chunk)
+        try:
+            payload = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise RuntimeError("Tavily returned an invalid JSON response") from exc
+        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+            raise RuntimeError("Tavily returned an invalid response shape")
+
         timestamp = datetime.now(UTC).isoformat()
         items = []
-        for item in payload.get("results", []):
-            url = _candidate_evidence_url(item.get("url"))
-            if url is None:
+        for item in payload["results"]:
+            if not isinstance(item, dict):
                 continue
-            title = item.get("title")
+            url = _candidate_evidence_url(item.get("url"))
+            excerpt = item.get("content")
+            if url is None or not isinstance(excerpt, str) or not excerpt.strip():
+                continue
+            raw_title = item.get("title")
+            title = (
+                raw_title.strip()
+                if isinstance(raw_title, str) and raw_title.strip()
+                else url
+            )
             try:
                 items.append(
                     EvidenceItem(
                         source="tavily",
-                        title=str(title or url)[:500],
+                        title=title[:500],
                         url=url,
-                        excerpt=str(item.get("content", ""))[:8000],
+                        excerpt=excerpt.strip()[:8000],
                         retrieved_at=timestamp,
                     )
                 )

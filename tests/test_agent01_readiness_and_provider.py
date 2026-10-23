@@ -26,6 +26,10 @@ def test_readiness_requires_provider_credentials_and_granted_scope(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is True
@@ -47,6 +51,10 @@ def test_readiness_fails_when_scope_grant_is_missing(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, False)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False
@@ -72,6 +80,24 @@ def test_model_adapter_rejects_endpoint_with_embedded_credentials(monkeypatch):
     from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
 
     monkeypatch.setenv("ANALYSIS_BASE_URL", "https://user:pass@example.com/v1")
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
+        OpenAICompatibleAnalyzer()
+
+
+@pytest.mark.parametrize(
+    "analysis_url",
+    [
+        "https://analysis.example:invalid/v1",
+        "https://analysis.example:99999/v1",
+        "https://analysis.example:0/v1",
+        "https://analysis.example:/v1",
+        "https://analysis.example\\path/v1",
+    ],
+)
+def test_model_adapter_rejects_invalid_endpoint_ports(monkeypatch, analysis_url):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("ANALYSIS_BASE_URL", analysis_url)
     with pytest.raises(RuntimeError, match="must be HTTPS"):
         OpenAICompatibleAnalyzer()
 
@@ -144,6 +170,8 @@ async def test_model_adapter_bounds_completion_and_requests_token_limit(monkeypa
     [
         "https://example.com:bad-port/report",
         "https://example.com:99999/report",
+        "https://example.com:/path",
+        "https://example.com/" + chr(92) + "path",
         "https://example.com/path with spaces",
     ],
 )
@@ -173,6 +201,12 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
                 "results": [
                     {"url": "https://example.com:bad-port/path", "title": "bad", "content": "x"},
                     {"url": "https://example.com:99999/path", "title": "bad", "content": "x"},
+                    {"url": "https://example.com:/path", "title": "bad", "content": "x"},
+                    {
+                        "url": "https://example.com/" + chr(92) + "path",
+                        "title": "bad",
+                        "content": "x",
+                    },
                     {"url": "https://example.com/path with spaces", "title": "bad", "content": "x"},
                     {
                         "url": "https://user:password@example.com/path",
@@ -193,6 +227,25 @@ async def test_tavily_filters_malformed_url_authorities(monkeypatch):
 
     assert len(evidence) == 1
     assert evidence[0].url == "https://example.com/good"
+
+
+@pytest.mark.parametrize(
+    "analysis_url",
+    [
+        "https://analysis.example:invalid/v1",
+        "https://analysis.example:99999/v1",
+        "https://analysis.example:0/v1",
+        "https://analysis.example/path with spaces",
+        "https://analysis.example/path\twith-control",
+    ],
+)
+def test_model_adapter_rejects_malformed_endpoint_urls(monkeypatch, analysis_url):
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "production")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", analysis_url)
+    with pytest.raises(RuntimeError, match="must be HTTPS"):
+        OpenAICompatibleAnalyzer()
 
 
 def test_model_adapter_rejects_loopback_http_in_production(monkeypatch):
@@ -218,7 +271,14 @@ def test_model_adapter_allows_loopback_http_outside_production(monkeypatch):
         "http://external.example/v1",
         "https://user:password@example.com/v1",
         "https://example.com/v1?token=unsafe",
+        "https://example.com/v1?",
         "https://example.com/v1#fragment",
+        "https://example.com/v1#",
+        "https://example.com:invalid/v1",
+        "https://example.com:99999/v1",
+        "https://example.com:0/v1",
+        "https://example.com/path with spaces",
+        "https://example.com/path\twith-control",
     ],
 )
 def test_readiness_fails_closed_for_unsafe_analysis_endpoint(
@@ -240,6 +300,10 @@ def test_readiness_fails_closed_for_unsafe_analysis_endpoint(
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False
@@ -264,6 +328,10 @@ def test_readiness_fails_for_loopback_http_in_production(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is False
@@ -287,7 +355,131 @@ def test_readiness_accepts_https_analysis_endpoint(monkeypatch):
         patch("ucos_core.dependencies.probe_redis", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_scope", return_value=ProbeResult(True, True)),
         patch("ucos_core.dependencies.probe_research_schema", return_value=ProbeResult(True, True)),
+        patch(
+            "ucos_core.dependencies.probe_research_runtime_privileges",
+            return_value=ProbeResult(True, True),
+        ),
     ):
         ready, components = required_dependencies_ready()
     assert ready is True
     assert components["analysis_model"] is True
+
+
+@pytest.mark.asyncio
+async def test_model_adapter_sends_evidence_with_real_newlines(monkeypatch):
+    import httpx
+
+    from ucos_core.agents.research.contracts import EvidenceItem
+    from ucos_core.integrations.model_analysis import OpenAICompatibleAnalyzer
+
+    monkeypatch.setenv("UCOS_ENV", "development")
+    monkeypatch.setenv("ANALYSIS_BASE_URL", "https://analysis.example/v1")
+    monkeypatch.setenv("ANALYSIS_API_KEY", "test-key")
+    monkeypatch.setenv("ANALYSIS_MODEL", "test-model")
+    captured = {}
+
+    def handler(request):
+        import json
+
+        captured.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={"choices": [{"finish_reason": "stop", "message": {"content": "grounded"}}]},
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.model_analysis.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        evidence = [
+            EvidenceItem(
+                source="tavily",
+                title="A title",
+                url="https://example.com/article",
+                excerpt="Evidence excerpt",
+                retrieved_at="2026-10-22T00:00:00+00:00",
+            )
+        ]
+        result = await OpenAICompatibleAnalyzer().analyze("a question", evidence)
+
+    user_content = captured["messages"][1]["content"]
+    assert result == "grounded"
+    assert "\\n" not in user_content
+    expected_prompt = (
+        "\n\nEvidence:\n[1] A title\nURL: https://example.com/article"
+        "\nEvidence: Evidence excerpt"
+    )
+    assert expected_prompt in user_content
+
+
+@pytest.mark.asyncio
+async def test_tavily_skips_malformed_or_empty_evidence_fields(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+
+    async def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "url": "https://example.com/null-content",
+                        "title": "Invalid",
+                        "content": None,
+                    },
+                    {
+                        "url": "https://example.com/object-content",
+                        "title": "Invalid",
+                        "content": {"text": "not evidence"},
+                    },
+                    {
+                        "url": "https://example.com/blank-content",
+                        "title": "Invalid",
+                        "content": "   ",
+                    },
+                    None,
+                    {
+                        "url": "https://example.com/fallback-title",
+                        "title": "   ",
+                        "content": "  Valid evidence  ",
+                    },
+                    {
+                        "url": "https://example.com/trimmed",
+                        "title": "  Grounded title  ",
+                        "content": "  Grounded excerpt  ",
+                    },
+                ]
+            },
+        )
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        evidence = await TavilyResearchSource().search("query", 10)
+
+    assert [item.title for item in evidence] == [
+        "https://example.com/fallback-title",
+        "Grounded title",
+    ]
+    assert [item.excerpt for item in evidence] == [
+        "Valid evidence",
+        "Grounded excerpt",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_tavily_rejects_invalid_results_container(monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+
+    async def handler(_request):
+        return httpx.Response(200, json={"results": {"not": "a list"}})
+
+    original_client = httpx.AsyncClient
+    with patch(
+        "ucos_core.integrations.tavily_research.httpx.AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs),
+    ):
+        with pytest.raises(RuntimeError, match="invalid response shape"):
+            await TavilyResearchSource().search("query", 3)

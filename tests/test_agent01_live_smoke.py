@@ -28,3 +28,19 @@ def test_live_smoke_requires_read_only_verification_database(monkeypatch, capsys
     captured = capsys.readouterr()
     assert result == 2
     assert "configuration is incomplete" in captured.err
+
+
+def test_live_smoke_rejects_empty_port_before_network(monkeypatch, capsys):
+    monkeypatch.setenv("UCOS_AGENT01_BASE_URL", "https://agent01.example:")
+    result = main(["--confirm-live", "--query", "non-sensitive verification query"])
+    captured = capsys.readouterr()
+    assert result == 2
+    assert "must be HTTPS" in captured.err
+
+
+def test_live_smoke_rejects_malformed_base_url_before_network(monkeypatch, capsys):
+    monkeypatch.setenv("UCOS_AGENT01_BASE_URL", "https://agent01.example:invalid")
+    result = main(["--confirm-live", "--query", "non-sensitive verification query"])
+    captured = capsys.readouterr()
+    assert result == 2
+    assert "must be HTTPS" in captured.err

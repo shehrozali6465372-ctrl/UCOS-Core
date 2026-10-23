@@ -1,5 +1,7 @@
 """Orchestration for Agent 01; fail closed on auth, provider, and persistence errors."""
 
+import logging
+
 from ucos_core.agents.research.contracts import (
     ResearchRequest,
     ResearchResponse,
@@ -15,6 +17,9 @@ from ucos_core.repositories.research_postgres import (
     ResearchIdempotencyConflict,
     ResearchRequestInProgress,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchUnavailable(RuntimeError):
@@ -70,21 +75,33 @@ class ResearchService:
             return claim
         generation = claim
 
+        stage = "tavily_search"
         try:
             evidence = await self._source.search(request.query, request.max_results)
+            stage = "model_analysis"
             analysis = await self._analyzer.analyze(request.query, evidence) if evidence else ""
             status = "SUCCEEDED" if evidence else "NO_RESULTS"
+            stage = "postgres_persist"
             await self._repository.save(request, generation, status, analysis, evidence)
         except ResearchIdempotencyConflict as exc:
             # A stale worker cannot release or overwrite the newer generation.
+            logger.warning("agent01_failure stage=idempotency_fence error_type=%s", type(exc).__name__)
             raise ResearchConflict("request claim was superseded or conflicted") from exc
         except Exception as exc:
+            # Log only an allowlisted stage and exception class. Provider exception
+            # strings may contain request URLs, credentials, or sensitive payloads.
+            logger.error(
+                "agent01_failure stage=%s error_type=%s",
+                stage,
+                type(exc).__name__,
+            )
             try:
                 await self._repository.release(request, generation)
-            except Exception:
-                # The lease expiry is the final recovery path if the database
-                # cannot accept an early release. Never hide the original fault.
-                pass
+            except Exception as release_exc:
+                logger.warning(
+                    "agent01_failure stage=claim_release error_type=%s",
+                    type(release_exc).__name__,
+                )
             raise ResearchUnavailable("research provider or durable persistence failed") from exc
 
         return ResearchResponse(

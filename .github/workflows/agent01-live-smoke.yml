@@ -24,10 +24,8 @@ jobs:
     timeout-minutes: 5
     environment: production
     steps:
-      - name: Check out verified Agent 01 smoke-test code
+      - name: Check out repository (current default-branch commit)
         uses: actions/checkout@v4
-        with:
-          ref: 70ffc3c287061d920f4debc6ce54db7655d12c83
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

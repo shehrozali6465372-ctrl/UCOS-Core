@@ -1,0 +1,47 @@
+name: Agent 01 live persistence smoke (manual only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_live:
+        description: "Confirm real provider-backed requests may be made and may incur charges"
+        required: true
+        type: boolean
+        default: false
+      query:
+        description: "Approved non-sensitive research query (input is visible in workflow metadata)"
+        required: true
+        type: string
+        default: "Verify UCOS Agent-01 research persistence with a concise test query."
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    if: ${{ inputs.confirm_live }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - name: Check out verified Agent 01 smoke-test code
+        uses: actions/checkout@v4
+        with:
+          ref: 70ffc3c287061d920f4debc6ce54db7655d12c83
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install runtime package
+        run: python -m pip install --disable-pip-version-check .
+      - name: Verify live persistence and idempotent replay
+        env:
+          UCOS_AGENT01_BASE_URL: ${{ secrets.UCOS_AGENT01_BASE_URL }}
+          UCOS_RESEARCH_API_TOKEN: ${{ secrets.UCOS_RESEARCH_API_TOKEN }}
+          UCOS_AGENT01_VERIFY_DATABASE_URL: ${{ secrets.UCOS_AGENT01_VERIFY_DATABASE_URL }}
+          UCOS_RESEARCH_SCOPE_TENANT_ID: ${{ secrets.UCOS_RESEARCH_SCOPE_TENANT_ID }}
+          UCOS_RESEARCH_SCOPE_WORKSPACE_ID: ${{ secrets.UCOS_RESEARCH_SCOPE_WORKSPACE_ID }}
+          UCOS_RESEARCH_SCOPE_BRAND_ID: ${{ secrets.UCOS_RESEARCH_SCOPE_BRAND_ID }}
+          UCOS_LIVE_QUERY: ${{ inputs.query }}
+        run: python scripts/verify_agent01_live.py --query "$UCOS_LIVE_QUERY" --confirm-live
